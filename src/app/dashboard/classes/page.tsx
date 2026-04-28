@@ -6,7 +6,7 @@ import { useDashboard } from "@/app/dashboard/layout";
 import { MiniStat } from "@/components/mini-stat";
 import { ClassList } from "@/components/class-list";
 import { LoaderIcon } from "@/components/icons";
-import { getDashboardRange, isToday, isThisWeek } from "@/lib/utils";
+import { fmtDate, isToday, isThisWeek } from "@/lib/utils";
 
 interface ClassItem {
   id: number;
@@ -51,7 +51,10 @@ export default function ClassesPage() {
     setLoading(true);
     setError(null);
     try {
-      const { startDate, endDate } = getDashboardRange();
+      const startDate = fmtDate(new Date());
+      const end = new Date();
+      end.setDate(end.getDate() + 30);
+      const endDate = fmtDate(end);
       const params = new URLSearchParams({ startDate, endDate });
       [
         "class_type",

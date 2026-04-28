@@ -11,11 +11,16 @@ import { PLAN_ORDER, PLAN_VALUES } from "@/lib/constants";
 
 interface Membership {
   id: number;
+  user_full_name?: string;
+  user_first_name?: string;
+  user_last_name?: string;
+  user_email?: string;
+  user_phone?: string;
+  membership_type_name?: string;
+  membership_type_id?: number;
   status?: string;
   paid_until?: string;
-  membership_type?: { name?: string };
-  customer?: { id?: number; first_name?: string; last_name?: string; email?: string };
-  [key: string]: unknown;
+  next_payment?: { date?: string; amount?: number };
 }
 
 interface PlanGroup {
@@ -23,9 +28,13 @@ interface PlanGroup {
   memberships: Membership[];
 }
 
+function memberName(m: Membership): string {
+  return m.user_full_name || [m.user_first_name, m.user_last_name].filter(Boolean).join(" ") || "—";
+}
+
 export default function PTsPage() {
   const { refreshKey, setLastFetch } = useDashboard();
-  const { fetchYogo } = useYogoFetch();
+  const { fetchReport } = useYogoFetch();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [planGroups, setPlanGroups] = useState<PlanGroup[]>([]);
@@ -36,19 +45,14 @@ export default function PTsPage() {
     setLoading(true);
     setError(null);
     try {
-      const membershipsRaw = await fetchYogo(
-        "memberships-list?status[]=active&populate[]=membership_type&populate[]=customer&limit=200"
-      );
+      const raw = await fetchReport("reports/memberships-list", { status: ["active"] });
+      const memberships = raw as unknown as Membership[];
 
-      const memberships: Membership[] = Array.isArray(membershipsRaw)
-        ? membershipsRaw
-        : (membershipsRaw as { memberships?: Membership[] })?.memberships ?? [];
-
-      const ptMemberships = memberships.filter((m) => isPTPlan(getPlan(m.membership_type?.name)));
+      const ptMemberships = memberships.filter((m) => isPTPlan(getPlan(m.membership_type_name)));
 
       const grouped: Record<string, Membership[]> = {};
       for (const m of ptMemberships) {
-        const plan = getPlan(m.membership_type?.name);
+        const plan = getPlan(m.membership_type_name);
         if (!grouped[plan]) grouped[plan] = [];
         grouped[plan].push(m);
       }
@@ -56,17 +60,11 @@ export default function PTsPage() {
       const ordered = PLAN_ORDER.filter((p) => isPTPlan(p) && grouped[p])
         .map((p) => ({ plan: p, memberships: grouped[p] }));
 
-      if (grouped["Outros"]) ordered.push({ plan: "Outros", memberships: grouped["Outros"] });
-
       const rev = ordered.reduce((sum, g) => sum + g.memberships.length * (PLAN_VALUES[g.plan] || 0), 0);
 
       const upcomingPayments = ptMemberships
         .filter((m) => m.paid_until)
-        .sort((a, b) => {
-          const da = daysUntil(a.paid_until!) ?? 999;
-          const db = daysUntil(b.paid_until!) ?? 999;
-          return da - db;
-        })
+        .sort((a, b) => (daysUntil(a.paid_until!) ?? 999) - (daysUntil(b.paid_until!) ?? 999))
         .slice(0, 10);
 
       setPlanGroups(ordered);
@@ -78,7 +76,7 @@ export default function PTsPage() {
     } finally {
       setLoading(false);
     }
-  }, [fetchYogo, setLastFetch]);
+  }, [fetchReport, setLastFetch]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
@@ -89,70 +87,51 @@ export default function PTsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Personal Trainers Ativos</h1>
-      </div>
+      <h1 className="text-xl font-bold">PTs do Marcelo</h1>
 
       <div className="grid grid-cols-2 gap-4">
-        <StatCard
-          icon={<UsersIcon />}
-          label="Total clientes PT"
-          value={totalPTs}
-          color="purple"
-        />
-        <StatCard
-          icon={<EuroIcon />}
-          label="Receita estimada"
-          value={eur(totalRevenue)}
-          color="emerald"
-        />
+        <StatCard icon={<UsersIcon />} label="Total clientes PT" value={totalPTs} color="cyan" />
+        <StatCard icon={<EuroIcon />} label="Receita estimada / mês" value={eur(totalRevenue)} color="emerald" />
       </div>
+
+      {upcoming.length > 0 && (
+        <div className="bg-cyan-950/20 border border-cyan-900/40 rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-cyan-400 uppercase tracking-wide mb-3">Próximos pagamentos</h2>
+          <div className="space-y-2">
+            {upcoming.map((m) => (
+              <div key={m.id} className="flex items-center justify-between py-2 border-b border-zinc-700/40 last:border-0">
+                <div>
+                  <div className="text-sm font-medium text-zinc-100">{memberName(m)}</div>
+                  <div className="text-xs text-zinc-500">{getPlan(m.membership_type_name)}{m.user_phone ? ` · ${m.user_phone}` : ""}</div>
+                </div>
+                <PaymentBadge paidUntil={m.paid_until} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6">
         {planGroups.map(({ plan, memberships }) => (
           <div key={plan} className="bg-zinc-800/40 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-white">{plan}</h2>
-              <span className="text-zinc-400 text-sm">{memberships.length} cliente{memberships.length !== 1 ? "s" : ""} · {eur(memberships.length * (PLAN_VALUES[plan] || 0))}</span>
+              <span className="text-zinc-400 text-sm">{memberships.length} cliente{memberships.length !== 1 ? "s" : ""} · {eur(memberships.length * (PLAN_VALUES[plan] || 0))}/mês</span>
             </div>
             <div className="space-y-2">
-              {memberships.map((m) => {
-                const name = [m.customer?.first_name, m.customer?.last_name].filter(Boolean).join(" ") || "—";
-                return (
-                  <div key={m.id} className="flex items-center justify-between py-2 border-b border-zinc-700/40 last:border-0">
-                    <div>
-                      <div className="text-sm font-medium text-zinc-100">{name}</div>
-                      <div className="text-xs text-zinc-500">{m.customer?.email || "—"}</div>
-                    </div>
-                    <PaymentBadge paidUntil={m.paid_until as string | null | undefined} />
+              {memberships.map((m) => (
+                <div key={m.id} className="flex items-center justify-between py-2 border-b border-zinc-700/40 last:border-0">
+                  <div>
+                    <div className="text-sm font-medium text-zinc-100">{memberName(m)}</div>
+                    <div className="text-xs text-zinc-500">{m.user_email || "—"}{m.user_phone ? ` · ${m.user_phone}` : ""}</div>
                   </div>
-                );
-              })}
+                  <PaymentBadge paidUntil={m.paid_until} />
+                </div>
+              ))}
             </div>
           </div>
         ))}
       </div>
-
-      {upcoming.length > 0 && (
-        <div className="bg-zinc-800/40 rounded-xl p-5">
-          <h2 className="font-semibold text-white mb-4">Próximos pagamentos</h2>
-          <div className="space-y-2">
-            {upcoming.map((m) => {
-              const name = [m.customer?.first_name, m.customer?.last_name].filter(Boolean).join(" ") || "—";
-              const plan = getPlan(m.membership_type?.name);
-              return (
-                <div key={m.id} className="flex items-center justify-between py-2 border-b border-zinc-700/40 last:border-0">
-                  <div>
-                    <div className="text-sm font-medium text-zinc-100">{name}</div>
-                    <div className="text-xs text-zinc-500">{plan}</div>
-                  </div>
-                  <PaymentBadge paidUntil={m.paid_until as string | null | undefined} />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

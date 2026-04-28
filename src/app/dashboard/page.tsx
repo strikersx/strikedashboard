@@ -260,8 +260,10 @@ export default function DashboardPage() {
           setMemberships(data.memberships as Rec[]);
           setChurn(data.churn as Rec[]);
           setFailed(data.failed as Rec[]);
-          const revData = data.revenue as { data?: { revenueReport?: Rec[] } };
-          setRevenueItems(revData?.data?.revenueReport ?? []);
+          const revData = data.revenue as { data?: { revenueReport?: Rec | Rec[] } };
+          const report = revData?.data?.revenueReport;
+          const reportItems = Array.isArray(report) ? report : report ? [report] : [];
+          setRevenueItems(reportItems as Rec[]);
         }
 
         setLastFetch(new Date());

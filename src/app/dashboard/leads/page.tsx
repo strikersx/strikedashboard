@@ -13,8 +13,7 @@ interface Customer {
   last_name?: string;
   email?: string;
   phone?: string;
-  created_at?: string;
-  [key: string]: unknown;
+  createdAt?: string;
 }
 
 export default function LeadsPage() {
@@ -30,22 +29,17 @@ export default function LeadsPage() {
     try {
       const rows = await fetchReport("reports/customers", {
         filters: [
-          {
-            type: "hasMembershipOrClassPass",
-            membershipTypeId: [],
-            classPassTypeId: [],
-            onlyActiveMembershipsOrClassPasses: false,
-            invertFilter: true,
-          },
+          { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
+          { type: "hasNoClassPass", classPassTypeId: [], onlyActiveClassPasses: false },
         ],
         returnColumnHeaders: true,
       });
 
-      const actionable = (rows as Customer[]).filter((c) => !isNonActionableLead(c)).map((c) => ({
+      const actionable = (rows as unknown as Customer[]).filter((c) => !isNonActionableLead(c)).map((c) => ({
         Nome: [c.first_name, c.last_name].filter(Boolean).join(" ") || "—",
         Email: c.email || "—",
         Telefone: c.phone || "—",
-        "Cadastrado em": c.created_at ? String(c.created_at).slice(0, 10) : "—",
+        "Cadastrado em": c.createdAt || "—",
       }));
 
       setLeads(actionable);
@@ -68,11 +62,7 @@ export default function LeadsPage() {
         <h1 className="text-xl font-bold">Leads frios accionáveis</h1>
         <p className="text-zinc-500 text-sm mt-1">Cadastraram-se mas nunca compraram</p>
       </div>
-      <DataTable
-        rows={leads}
-        title="Leads"
-        empty="Nenhum lead encontrado"
-      />
+      <DataTable rows={leads} title="Leads" empty="Nenhum lead encontrado" />
     </div>
   );
 }

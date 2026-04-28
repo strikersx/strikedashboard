@@ -7,24 +7,22 @@ import { StatCard } from "@/components/stat-card";
 import { PaymentBadge } from "@/components/payment-badge";
 import { LoaderIcon, UsersIcon, EuroIcon } from "@/components/icons";
 import { getPlan, isPTPlan, eur } from "@/lib/utils";
-import { ALL_SUB_IDS, PLAN_ORDER, PLAN_VALUES } from "@/lib/constants";
-
-interface Customer {
-  id: number;
-  first_name?: string;
-  last_name?: string;
-  email?: string;
-  phone?: string;
-  [key: string]: unknown;
-}
+import { PLAN_ORDER, PLAN_VALUES } from "@/lib/constants";
 
 interface Membership {
   id: number;
+  user_id?: number;
+  user_full_name?: string;
+  user_first_name?: string;
+  user_last_name?: string;
+  user_email?: string;
+  user_phone?: string;
+  membership_type_name?: string;
+  membership_type_id?: number;
   status?: string;
   paid_until?: string;
-  membership_type?: { name?: string };
-  customer?: { id?: number; first_name?: string; last_name?: string; email?: string };
-  [key: string]: unknown;
+  start_date?: string;
+  next_payment?: { date?: string; amount?: number };
 }
 
 interface PlanGroup {
@@ -32,9 +30,13 @@ interface PlanGroup {
   memberships: Membership[];
 }
 
+function memberName(m: Membership): string {
+  return m.user_full_name || [m.user_first_name, m.user_last_name].filter(Boolean).join(" ") || "—";
+}
+
 export default function SubscribersPage() {
   const { refreshKey, setLastFetch } = useDashboard();
-  const { fetchYogo, fetchReport } = useYogoFetch();
+  const { fetchReport } = useYogoFetch();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [planGroups, setPlanGroups] = useState<PlanGroup[]>([]);
@@ -44,41 +46,23 @@ export default function SubscribersPage() {
     setLoading(true);
     setError(null);
     try {
-      const [, membershipsRaw] = await Promise.all([
-        fetchReport("reports/customers", {
-          filters: [
-            {
-              type: "hasMembershipOrClassPass",
-              membershipTypeId: ALL_SUB_IDS,
-              classPassTypeId: [],
-              onlyActiveMembershipsOrClassPasses: false,
-            },
-          ],
-          returnColumnHeaders: true,
-        }),
-        fetchYogo("memberships-list?status[]=active&populate[]=membership_type&populate[]=customer&limit=200"),
-      ]);
-
-      const memberships: Membership[] = Array.isArray(membershipsRaw)
-        ? membershipsRaw
-        : (membershipsRaw as { memberships?: Membership[] })?.memberships ?? [];
+      const raw = await fetchReport("reports/memberships-list", { status: ["active"] });
+      const memberships = raw as unknown as Membership[];
 
       const subMemberships = memberships.filter((m) => {
-        const plan = getPlan(m.membership_type?.name);
+        const plan = getPlan(m.membership_type_name);
         return !isPTPlan(plan);
       });
 
       const grouped: Record<string, Membership[]> = {};
       for (const m of subMemberships) {
-        const plan = getPlan(m.membership_type?.name);
+        const plan = getPlan(m.membership_type_name);
         if (!grouped[plan]) grouped[plan] = [];
         grouped[plan].push(m);
       }
 
       const ordered = PLAN_ORDER.filter((p) => !isPTPlan(p) && grouped[p])
         .map((p) => ({ plan: p, memberships: grouped[p] }));
-
-      if (grouped["Outros"]) ordered.push({ plan: "Outros", memberships: grouped["Outros"] });
 
       const rev = ordered.reduce((sum, g) => sum + g.memberships.length * (PLAN_VALUES[g.plan] || 0), 0);
 
@@ -90,7 +74,7 @@ export default function SubscribersPage() {
     } finally {
       setLoading(false);
     }
-  }, [fetchYogo, fetchReport, setLastFetch]);
+  }, [fetchReport, setLastFetch]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
@@ -106,18 +90,8 @@ export default function SubscribersPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <StatCard
-          icon={<UsersIcon />}
-          label="Total subscritores"
-          value={totalSubs}
-          color="blue"
-        />
-        <StatCard
-          icon={<EuroIcon />}
-          label="Receita estimada / mês"
-          value={eur(totalRevenue)}
-          color="emerald"
-        />
+        <StatCard icon={<UsersIcon />} label="Total subscritores" value={totalSubs} color="blue" />
+        <StatCard icon={<EuroIcon />} label="Receita estimada / mês" value={eur(totalRevenue)} color="emerald" />
       </div>
 
       <div className="space-y-6">
@@ -128,18 +102,15 @@ export default function SubscribersPage() {
               <span className="text-zinc-400 text-sm">{memberships.length} sub{memberships.length !== 1 ? "s" : ""} · {eur(memberships.length * (PLAN_VALUES[plan] || 0))}/mês</span>
             </div>
             <div className="space-y-2">
-              {memberships.map((m) => {
-                const name = [m.customer?.first_name, m.customer?.last_name].filter(Boolean).join(" ") || "—";
-                return (
-                  <div key={m.id} className="flex items-center justify-between py-2 border-b border-zinc-700/40 last:border-0">
-                    <div>
-                      <div className="text-sm font-medium text-zinc-100">{name}</div>
-                      <div className="text-xs text-zinc-500">{m.customer?.email || "—"}</div>
-                    </div>
-                    <PaymentBadge paidUntil={m.paid_until as string | null | undefined} />
+              {memberships.map((m) => (
+                <div key={m.id} className="flex items-center justify-between py-2 border-b border-zinc-700/40 last:border-0">
+                  <div>
+                    <div className="text-sm font-medium text-zinc-100">{memberName(m)}</div>
+                    <div className="text-xs text-zinc-500">{m.user_email || "—"}{m.user_phone ? ` · ${m.user_phone}` : ""}</div>
                   </div>
-                );
-              })}
+                  <PaymentBadge paidUntil={m.paid_until} />
+                </div>
+              ))}
             </div>
           </div>
         ))}
