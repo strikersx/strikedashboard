@@ -4,6 +4,7 @@ import { useState, useCallback, createContext, useContext } from "react";
 import { Nav } from "@/components/nav";
 import { useAuth } from "@/hooks/use-auth";
 import { LoaderIcon } from "@/components/icons";
+import { clearYogoCache } from "@/hooks/use-yogo";
 
 interface DashboardContextValue {
   refreshKey: number;
@@ -27,6 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
   const handleRefresh = useCallback(() => {
+    clearYogoCache();
     setRefreshKey((k) => k + 1);
   }, []);
 
