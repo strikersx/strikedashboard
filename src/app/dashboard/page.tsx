@@ -281,16 +281,13 @@ export default function DashboardPage() {
   }, [refreshKey, isAdmin, fetchYogo, fetchReport, fetchGraphQL, classesUrl, sixMonthsAgo, setLastFetch]);
 
   /* ─── Derived state: Admin KPIs ─── */
-  const activeMemberships = memberships.filter(
-    (m) => RECURRING_SUB_IDS.includes(Number(m.membership_type_id || m.membershipTypeId))
-  );
-  const subsCount = activeMemberships.length;
+  // subs = customers from /reports/customers (all with any subscription)
+  const subsCount = subs.length;
 
-  const ptMemberships = memberships.filter((m) => {
-    const plan = getPlan(String(m.name || m.membership_type_name || ""));
+  const ptCount = subs.filter((c) => {
+    const plan = getPlan(String(c.has_membership_membership_description || ""));
     return isPTPlan(plan);
-  });
-  const ptCount = ptMemberships.length;
+  }).length;
   const groupSubsCount = subsCount - ptCount;
 
   const churnCount = churn.length;
