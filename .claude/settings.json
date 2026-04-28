@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(obsidian help *)",
+      "Bash(npx obsidian *)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --no-import-alias --turbopack)",
+      "Bash(npm init *)"
+    ]
+  }
+}
