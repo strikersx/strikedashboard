@@ -1,0 +1,36 @@
+"use client";
+import { eur } from "@/lib/utils";
+
+interface BarChartProps { data: { label: string; value: number }[]; height?: number; currentIdx?: number; }
+
+export function BarChart({ data, height = 240, currentIdx }: BarChartProps) {
+  const W = 700, H = height;
+  const pad = { top: 10, right: 10, bottom: 30, left: 55 };
+  const cw = W - pad.left - pad.right, ch = H - pad.top - pad.bottom;
+  const maxV = Math.max(...data.map((d) => d.value), 1);
+  const bw = (cw / data.length) * 0.7, gp = (cw / data.length) * 0.3;
+  const ticks = [0, 0.25, 0.5, 0.75, 1];
+  const fmtTick = (v: number) => (v >= 1000 ? "€" + (v / 1000).toFixed(1) + "k" : "€" + Math.round(v));
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      {ticks.map((t, i) => (
+        <g key={i}>
+          <line x1={pad.left} x2={W - pad.right} y1={pad.top + ch * (1 - t)} y2={pad.top + ch * (1 - t)} stroke="#27272a" strokeDasharray="3 3" />
+          <text x={pad.left - 6} y={pad.top + ch * (1 - t) + 4} fill="#71717a" fontSize="11" textAnchor="end">{fmtTick(maxV * t)}</text>
+        </g>
+      ))}
+      {data.map((d, i) => {
+        const x = pad.left + i * (cw / data.length) + gp / 2;
+        const h = (d.value / maxV) * ch, y = pad.top + ch - h;
+        const fill = i === currentIdx ? "#10b981" : i < (currentIdx ?? -1) ? "#059669" : "#3f3f46";
+        return (
+          <g key={i}>
+            <rect x={x} y={y} width={bw} height={h} fill={fill} rx={3}><title>{d.label}: {eur(d.value)}</title></rect>
+            <text x={x + bw / 2} y={H - pad.bottom + 16} fill="#a1a1aa" fontSize="11" textAnchor="middle">{d.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
