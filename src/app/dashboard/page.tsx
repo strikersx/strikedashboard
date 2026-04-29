@@ -423,16 +423,16 @@ export default function DashboardPage() {
           <StatCard
             icon={<ZapIcon />}
             label="Novos trials"
-            value={newTrialToday}
-            sublabel={`Semana: ${newTrialWeek} · Mês: ${newTrialMonth}`}
+            value={newTrialMonth}
+            sublabel={`Hoje: ${newTrialToday} · Semana: ${newTrialWeek}`}
             color="cyan"
-            onClick={() => router.push("/dashboard/classes")}
+            onClick={() => router.push("/dashboard/trials")}
           />
           <StatCard
             icon={<UsersIcon />}
             label="Visitantes"
-            value={visitorsToday}
-            sublabel={`Semana: ${visitorsWeek} · Mês: ${visitorsMonth}`}
+            value={visitorsMonth}
+            sublabel={`Hoje: ${visitorsToday} · Semana: ${visitorsWeek}`}
             color="blue"
             onClick={() => router.push("/dashboard/classes")}
           />
@@ -442,6 +442,20 @@ export default function DashboardPage() {
         <div className="border border-border-subtle rounded-xl p-5">
           <h2 className="head text-lg font-semibold mb-4">Ações recomendadas</h2>
           <div className="space-y-3">
+            {newTrialToday > 0 && (
+              <ActionRow
+                color="electric"
+                label={`${newTrialToday} trial${newTrialToday > 1 ? "s" : ""} agendado${newTrialToday > 1 ? "s" : ""} HOJE — confirmar presença`}
+                onClick={() => router.push("/dashboard/trials")}
+              />
+            )}
+            {visitorsToday > 0 && (
+              <ActionRow
+                color="blue"
+                label={`${visitorsToday} visitante${visitorsToday > 1 ? "s" : ""} USC/CP HOJE — receber bem, converter`}
+                onClick={() => router.push("/dashboard/classes")}
+              />
+            )}
             {failedCount > 0 && (
               <ActionRow
                 color="red"
@@ -629,7 +643,7 @@ function ActionRow({
   label,
   onClick,
 }: {
-  color: "red" | "amber" | "pink" | "purple" | "blue";
+  color: "red" | "amber" | "pink" | "purple" | "blue" | "electric";
   label: string;
   onClick: () => void;
 }) {
@@ -639,6 +653,7 @@ function ActionRow({
     pink: "bg-tone-magenta",
     purple: "bg-tone-magenta",
     blue: "bg-tone-blue",
+    electric: "bg-accent",
   }[color];
 
   return (

@@ -26,7 +26,8 @@
       "Bash(vercel --prod)",
       "Bash(vercel --prod --force)",
       "Bash(python3 -c \"import sys,json; print\\(json.dumps\\(json.load\\(sys.stdin\\),indent=2\\)\\)\")",
-      "Bash(vercel ls *)"
+      "Bash(vercel ls *)",
+      "Bash(node -e ' *)"
     ],
     "additionalDirectories": [
       "/Users/ricore/Documents/Project/strikehousedashboard/src/app/api/yogo"
