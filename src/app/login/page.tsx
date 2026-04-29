@@ -33,18 +33,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-black">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-bg">
+      <div className="bg-surface border border-border-subtle rounded-2xl p-8 w-full max-w-sm">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-11 h-11 bg-red-600 rounded-lg flex items-center justify-center">
+          <div className="w-11 h-11 bg-accent rounded-lg flex items-center justify-center">
             <TrophyIcon />
           </div>
           <div>
             <h1 className="text-xl font-bold">Striker&apos;s House</h1>
-            <p className="text-zinc-500 text-xs">Dashboard de controlo</p>
+            <p className="text-muted text-xs">Dashboard de controlo</p>
           </div>
         </div>
-        <div className="text-zinc-400 text-sm mb-3 flex items-center gap-2">
+        <div className="text-muted-strong text-sm mb-3 flex items-center gap-2">
           <LockIcon /> Senha de acesso
         </div>
         <input
@@ -54,13 +54,13 @@ export default function LoginPage() {
           onKeyDown={(e) => e.key === "Enter" && submit()}
           placeholder="••••••••"
           autoFocus
-          className="w-full bg-black border border-zinc-800 rounded-lg p-3 mb-3 focus:outline-none focus:border-red-600 text-white"
+          className="w-full bg-bg border border-border-strong rounded-lg p-3 mb-3 focus:outline-none focus:border-accent text-white"
         />
-        {error && <div className="text-red-400 text-sm mb-3">{error}</div>}
+        {error && <div className="text-tone-coral text-sm mb-3">{error}</div>}
         <button
           onClick={submit}
           disabled={loading || !password}
-          className="w-full bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 px-4 py-3 rounded-lg font-medium transition"
+          className="w-full bg-accent hover:bg-accent/90 text-black disabled:bg-surface2 disabled:text-muted px-4 py-3 rounded-lg font-medium transition"
         >
           {loading ? "A entrar..." : "Entrar"}
         </button>

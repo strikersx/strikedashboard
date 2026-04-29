@@ -44,11 +44,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <DashboardContext.Provider value={{ refreshKey, lastFetch, setLastFetch }}>
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           <Nav role={role} onRefresh={handleRefresh} onLogout={logout} lastFetch={lastFetch} />
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">{children}</div>
-          <div className="mt-6 text-center text-zinc-700 text-xs">
+          <div className="bg-surface border border-border-subtle rounded-2xl p-3 sm:p-4 md:p-6 pb-20 md:pb-0">{children}</div>
+          <div className="mt-6 text-center text-muted text-xs">
             Yogo Booking API · Next.js · v2.0 · {role}
           </div>
         </div>
