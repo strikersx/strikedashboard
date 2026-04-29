@@ -46,13 +46,20 @@ export const ADMIN_ONLY_ROUTES = [
 ] as const;
 
 export const COLOR_MAP = {
-  emerald: { bg: "bg-emerald-500/10", text: "text-emerald-500", pill: "bg-emerald-950 text-emerald-400" },
-  blue: { bg: "bg-blue-500/10", text: "text-blue-500", pill: "bg-blue-950 text-blue-400" },
-  amber: { bg: "bg-amber-500/10", text: "text-amber-500", pill: "bg-amber-950 text-amber-400" },
-  red: { bg: "bg-red-500/10", text: "text-red-500", pill: "bg-red-950 text-red-400" },
-  purple: { bg: "bg-purple-500/10", text: "text-purple-500", pill: "bg-purple-950 text-purple-400" },
-  pink: { bg: "bg-pink-500/10", text: "text-pink-500", pill: "bg-pink-950 text-pink-400" },
-  cyan: { bg: "bg-cyan-500/10", text: "text-cyan-500", pill: "bg-cyan-950 text-cyan-400" },
+  // New semantic tones
+  electric: { bg: "bg-tone-electric/10", text: "text-tone-electric", pill: "bg-tone-electric/15 text-tone-electric" },
+  coral:    { bg: "bg-tone-coral/10",    text: "text-tone-coral",    pill: "bg-tone-coral/15 text-tone-coral" },
+  amber:    { bg: "bg-tone-amber/10",    text: "text-tone-amber",    pill: "bg-tone-amber/15 text-tone-amber" },
+  lime:     { bg: "bg-tone-lime/10",     text: "text-tone-lime",     pill: "bg-tone-lime/15 text-tone-lime" },
+  magenta:  { bg: "bg-tone-magenta/10",  text: "text-tone-magenta",  pill: "bg-tone-magenta/15 text-tone-magenta" },
+  blue:     { bg: "bg-tone-blue/10",     text: "text-tone-blue",     pill: "bg-tone-blue/15 text-tone-blue" },
+  mint:     { bg: "bg-tone-mint/10",     text: "text-tone-mint",     pill: "bg-tone-mint/15 text-tone-mint" },
+  // Backward-compatible aliases
+  emerald:  { bg: "bg-tone-electric/10", text: "text-tone-electric", pill: "bg-tone-electric/15 text-tone-electric" },
+  red:      { bg: "bg-tone-coral/10",    text: "text-tone-coral",    pill: "bg-tone-coral/15 text-tone-coral" },
+  purple:   { bg: "bg-tone-magenta/10",  text: "text-tone-magenta",  pill: "bg-tone-magenta/15 text-tone-magenta" },
+  pink:     { bg: "bg-tone-magenta/10",  text: "text-tone-magenta",  pill: "bg-tone-magenta/15 text-tone-magenta" },
+  cyan:     { bg: "bg-tone-mint/10",     text: "text-tone-mint",     pill: "bg-tone-mint/15 text-tone-mint" },
 } as const;
 
 export type ColorName = keyof typeof COLOR_MAP;

@@ -1,1 +1,45 @@
 @import "tailwindcss";
+
+@theme {
+  --color-bg: #07070a;
+  --color-surface: #0F0F14;
+  --color-surface2: #15151C;
+  --color-border-subtle: oklch(100% 0 0 / 0.06);
+  --color-border-strong: oklch(100% 0 0 / 0.10);
+  --color-muted: oklch(100% 0 0 / 0.5);
+  --color-muted-strong: oklch(100% 0 0 / 0.72);
+  --color-accent: #00E5A0;
+  --color-tone-coral: #FF3D2E;
+  --color-tone-amber: #FFB627;
+  --color-tone-lime: #A6E22E;
+  --color-tone-electric: #00E5A0;
+  --color-tone-magenta: #FF2E88;
+  --color-tone-blue: #3D7DFF;
+  --color-tone-mint: #27D9A8;
+}
+
+/* Typography */
+.num  { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; letter-spacing: -0.01em; line-height: 0.9; }
+.head { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+/* Scrollbar-less scroll */
+.scrollbox { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.scrollbox::-webkit-scrollbar { width: 0; height: 0; }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fadeIn .2s ease-out; }
+
+@keyframes barGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.bar-grow { transform-origin: left; animation: barGrow .8s cubic-bezier(.2,.8,.3,1) both; }
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  50%      { box-shadow: 0 0 0 6px rgba(0,0,0,0); opacity: 0.6; }
+}
+.pulse-dot { animation: pulseGlow 1.8s ease-in-out infinite; }
+
+/* Tap feedback */
+.tap { transition: transform .12s ease; }
+.tap:active { transform: scale(0.98); }

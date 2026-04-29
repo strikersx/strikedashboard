@@ -14,7 +14,11 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d[0] if isinstance\\(d,list\\) and len\\(d\\)>0 else d, indent=2\\)\\)\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); rows=d if isinstance\\(d,list\\) else [d]; print\\(json.dumps\\(rows[0:2], indent=2\\)\\)\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(type\\(d\\).__name__, len\\(d\\) if isinstance\\(d,list\\) else list\\(d.keys\\(\\)\\)[:5]\\)\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(len\\(d.get\\('customers',[]\\)\\)\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(len\\(d.get\\('customers',[]\\)\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('active:', len\\(d\\)\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('customers with sub:', len\\(d.get\\('customers',[]\\)\\)\\)\")",
+      "Bash(file /Users/ricore/Documents/Project/strikehousedashboard/StrikeDashboard/uploads/*.png)"
     ],
     "additionalDirectories": [
       "/Users/ricore/Documents/Project/strikehousedashboard/src/app/api/yogo"
