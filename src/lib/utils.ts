@@ -12,8 +12,25 @@ export function monthLabel(m: number): string {
 
 export function getToday(): string { return fmtDate(new Date()); }
 
+export function getWeekStart(): string {
+  const t = new Date();
+  const day = t.getDay(); // 0=Sun, 1=Mon
+  const diff = day === 0 ? 6 : day - 1; // days since Monday
+  t.setDate(t.getDate() - diff);
+  return fmtDate(t);
+}
+
 export function getWeekEnd(): string {
-  const t = new Date(); t.setDate(t.getDate() + 6); return fmtDate(t);
+  const t = new Date();
+  const day = t.getDay();
+  const diff = day === 0 ? 0 : 7 - day; // days until Sunday
+  t.setDate(t.getDate() + diff);
+  return fmtDate(t);
+}
+
+export function getMonthStart(): string {
+  const t = new Date();
+  return fmtDate(new Date(t.getFullYear(), t.getMonth(), 1));
 }
 
 export function getMonthEnd(): string {
@@ -21,11 +38,13 @@ export function getMonthEnd(): string {
 }
 
 export function getDashboardRange(): { startDate: string; endDate: string } {
+  // Fetch from start of month (to include past classes this month)
+  const startDate = getMonthStart();
   const today = new Date();
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   const minEnd = new Date(today); minEnd.setDate(today.getDate() + 7);
   const end = endOfMonth > minEnd ? endOfMonth : minEnd;
-  return { startDate: fmtDate(today), endDate: fmtDate(end) };
+  return { startDate, endDate: fmtDate(end) };
 }
 
 export function getLast30Days(): { startDate: string; endDate: string } {
@@ -34,8 +53,8 @@ export function getLast30Days(): { startDate: string; endDate: string } {
 }
 
 export function isToday(dateStr: string): boolean { return dateStr === getToday(); }
-export function isThisWeek(dateStr: string): boolean { return dateStr >= getToday() && dateStr <= getWeekEnd(); }
-export function isThisMonth(dateStr: string): boolean { return dateStr >= getToday() && dateStr <= getMonthEnd(); }
+export function isThisWeek(dateStr: string): boolean { return dateStr >= getWeekStart() && dateStr <= getWeekEnd(); }
+export function isThisMonth(dateStr: string): boolean { return dateStr >= getMonthStart() && dateStr <= getMonthEnd(); }
 
 export function daysUntil(dateStr: string): number | null {
   if (!dateStr) return null;
