@@ -5,44 +5,23 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useDashboard } from "@/app/dashboard/layout";
 import { useYogoFetch } from "@/hooks/use-yogo";
-import { StatCard } from "@/components/stat-card";
-import { MiniStat } from "@/components/mini-stat";
-import { Pill } from "@/components/pill";
+import { KPICard } from "@/components/kpi-card";
+import { ActionRowHome } from "@/components/action-row-home";
+import { Sparkline } from "@/components/sparkline";
+import { TrendChip } from "@/components/trend-chip";
 import {
-  EuroIcon,
-  UsersIcon,
-  TrendIcon,
-  CardIcon,
-  ZapIcon,
-  UserPlusIcon,
-  TargetIcon,
-  CheckIcon,
-  XIcon,
-  LoaderIcon,
+  EuroIcon, UsersIcon, TrendIcon, CardIcon,
+  ZapIcon, UserPlusIcon, TargetIcon, LoaderIcon,
 } from "@/components/icons";
 import {
-  eur,
-  isToday,
-  isThisWeek,
-  isThisMonth,
-  getDashboardRange,
-  getLast30Days,
-  fmtDate,
-  getPlan,
-  isPTPlan,
-  isNonActionableLead,
+  eur, isToday, isThisWeek, isThisMonth,
+  getDashboardRange, getLast30Days, fmtDate,
+  getPlan, isPTPlan, isNonActionableLead,
 } from "@/lib/utils";
-import {
-  ALL_SUB_IDS,
-  RECURRING_SUB_IDS,
-  TRIAL_CLASS_TYPE_ID,
-  TRIAL_CLASS_PASS_ID,
-} from "@/lib/constants";
+import { ALL_SUB_IDS, RECURRING_SUB_IDS, TRIAL_CLASS_TYPE_ID, TRIAL_CLASS_PASS_ID } from "@/lib/constants";
 
-/* ─── Types ─── */
 type Rec = Record<string, unknown>;
 
-/* ─── Revenue GraphQL query ─── */
 const REVENUE_QUERY = `
 query revenueReport($input: RevenueReportInput!) {
   revenueReport(input: $input) {
@@ -51,60 +30,56 @@ query revenueReport($input: RevenueReportInput!) {
   }
 }`;
 
+/** Group revenue items by month → cumulative running totals for sparkline */
+function buildSparkData(revenueItems: Rec[]): number[] {
+  const monthTotals: Record<string, number> = {};
+  for (const period of revenueItems) {
+    const items = (period.items || []) as Rec[];
+    for (const item of items) {
+      const date = String(item.eventStartDate || "");
+      if (!date) continue;
+      const key = date.slice(0, 7); // "2026-01"
+      monthTotals[key] = (monthTotals[key] || 0) + Number(item.totalInclVat || 0);
+    }
+  }
+  const months = Object.keys(monthTotals).sort();
+  if (months.length === 0) return [];
+  let cum = 0;
+  return months.map((m) => { cum += monthTotals[m]; return cum; });
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { role, isAdmin } = useAuth();
   const { refreshKey, setLastFetch } = useDashboard();
   const { fetchYogo, fetchReport, fetchGraphQL } = useYogoFetch();
 
-  /* ─── State ─── */
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Admin KPI data
   const [subs, setSubs] = useState<Rec[]>([]);
-  const [memberships, setMemberships] = useState<Rec[]>([]);
   const [churn, setChurn] = useState<Rec[]>([]);
   const [failed, setFailed] = useState<Rec[]>([]);
   const [revenueItems, setRevenueItems] = useState<Rec[]>([]);
-
-  // Shared data (admin + sales)
   const [leads, setLeads] = useState<Rec[]>([]);
   const [trialNoConv, setTrialNoConv] = useState<Rec[]>([]);
   const [trialAttended, setTrialAttended] = useState<Rec[]>([]);
   const [trialClasses, setTrialClasses] = useState<Rec[]>([]);
   const [allClasses, setAllClasses] = useState<Rec[]>([]);
 
-  /* ─── Helpers ─── */
-  const classesUrl = useCallback(
-    (trialOnly: boolean) => {
-      const { startDate, endDate } = getDashboardRange();
-      const params = new URLSearchParams();
-      params.set("startDate", startDate);
-      params.set("endDate", endDate);
-      for (const p of [
-        "class_type",
-        "teachers",
-        "room",
-        "room.branch",
-        "signup_count",
-        "checked_in_count",
-        "waiting_list_count",
-        "waiting_list_max",
-        "livestream_signup_count",
-        "classpass_com_signup_count",
-        "bruce_app_signup_count",
-        "urban_sports_club_signup_count",
-      ]) {
-        params.append("populate[]", p);
-      }
-      params.append("sort[]", "date ASC");
-      params.append("sort[]", "start_time ASC");
-      if (trialOnly) params.append("class_type[]", String(TRIAL_CLASS_TYPE_ID));
-      return `classes?${params.toString()}`;
-    },
-    []
-  );
+  const classesUrl = useCallback((trialOnly: boolean) => {
+    const { startDate, endDate } = getDashboardRange();
+    const params = new URLSearchParams();
+    params.set("startDate", startDate);
+    params.set("endDate", endDate);
+    for (const p of ["class_type","teachers","room","room.branch","signup_count","checked_in_count","waiting_list_count","waiting_list_max","livestream_signup_count","classpass_com_signup_count","bruce_app_signup_count","urban_sports_club_signup_count"]) {
+      params.append("populate[]", p);
+    }
+    params.append("sort[]", "date ASC");
+    params.append("sort[]", "start_time ASC");
+    if (trialOnly) params.append("class_type[]", String(TRIAL_CLASS_TYPE_ID));
+    return `classes?${params.toString()}`;
+  }, []);
 
   const sixMonthsAgo = useCallback(() => {
     const d = new Date();
@@ -112,10 +87,8 @@ export default function DashboardPage() {
     return fmtDate(d);
   }, []);
 
-  /* ─── Fetch all data ─── */
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
       setLoading(true);
       setError(null);
@@ -124,145 +97,38 @@ export default function DashboardPage() {
         const today = fmtDate(new Date());
         const sixMAgo = sixMonthsAgo();
 
-        // Common fetches (both admin and sales)
         const commonPromises = {
-          leads: fetchReport("reports/customers", {
-            filters: [
-              { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
-              { type: "hasNoClassPass", classPassTypeId: [], onlyActiveClassPasses: false },
-            ],
-            returnColumnHeaders: true,
-          }),
-          trialNoConv: fetchReport("reports/customers", {
-            filters: [
-              { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
-              {
-                type: "hasMembershipOrClassPass",
-                membershipTypeId: [],
-                classPassTypeId: [TRIAL_CLASS_PASS_ID],
-                onlyActiveMembershipsOrClassPasses: false,
-              },
-            ],
-            returnColumnHeaders: true,
-          }),
-          trialAttended: fetchReport("reports/customers", {
-            filters: [
-              { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
-              {
-                type: "hasMembershipOrClassPass",
-                membershipTypeId: [],
-                classPassTypeId: [TRIAL_CLASS_PASS_ID],
-                onlyActiveMembershipsOrClassPasses: false,
-              },
-              {
-                type: "numberOfSignups",
-                classTypeId: [TRIAL_CLASS_TYPE_ID],
-                membershipTypeId: [],
-                conditionType: "greaterThanOrEquals",
-                conditionAmount: 1,
-                averagePerTimeUnit: "month",
-                startDate: sixMAgo,
-                endDate: today,
-                includeClassSignups: true,
-                onlyCheckedInClassSignups: true,
-                includeWaitingListSignups: false,
-                includeLivestreamSignups: false,
-                includeZeroSignups: false,
-              },
-            ],
-            returnColumnHeaders: true,
-          }),
+          leads: fetchReport("reports/customers", { filters: [{ type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false }, { type: "hasNoClassPass", classPassTypeId: [], onlyActiveClassPasses: false }], returnColumnHeaders: true }),
+          trialNoConv: fetchReport("reports/customers", { filters: [{ type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false }, { type: "hasMembershipOrClassPass", membershipTypeId: [], classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveMembershipsOrClassPasses: false }], returnColumnHeaders: true }),
+          trialAttended: fetchReport("reports/customers", { filters: [{ type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false }, { type: "hasMembershipOrClassPass", membershipTypeId: [], classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveMembershipsOrClassPasses: false }, { type: "numberOfSignups", classTypeId: [TRIAL_CLASS_TYPE_ID], membershipTypeId: [], conditionType: "greaterThanOrEquals", conditionAmount: 1, averagePerTimeUnit: "month", startDate: sixMAgo, endDate: today, includeClassSignups: true, onlyCheckedInClassSignups: true, includeWaitingListSignups: false, includeLivestreamSignups: false, includeZeroSignups: false }], returnColumnHeaders: true }),
           trialClasses: fetchYogo(classesUrl(true)),
           allClasses: fetchYogo(classesUrl(false)),
         };
 
-        // Admin-only fetches
-        const adminPromises = isAdmin
-          ? {
-              subs: fetchReport("reports/customers", {
-                filters: [
-                  {
-                    type: "hasMembershipOrClassPass",
-                    membershipTypeId: ALL_SUB_IDS,
-                    classPassTypeId: [],
-                    onlyActiveMembershipsOrClassPasses: false,
-                  },
-                ],
-                returnColumnHeaders: true,
-              }),
-              memberships: fetchReport("reports/memberships-list", { status: ["active"] }),
-              churn: fetchReport("reports/customers", {
-                filters: [
-                  {
-                    type: "numberOfSignups",
-                    classTypeId: [],
-                    membershipTypeId: [],
-                    conditionType: "lessThanOrEquals",
-                    conditionAmount: 0,
-                    averagePerTimeUnit: "month",
-                    startDate: last30Start,
-                    endDate: last30End,
-                    includeClassSignups: true,
-                    onlyCheckedInClassSignups: false,
-                    includeWaitingListSignups: false,
-                    includeLivestreamSignups: false,
-                    includeZeroSignups: false,
-                  },
-                  {
-                    type: "hasMembershipOrClassPass",
-                    membershipTypeId: RECURRING_SUB_IDS,
-                    classPassTypeId: [],
-                    onlyActiveMembershipsOrClassPasses: true,
-                  },
-                ],
-                returnColumnHeaders: true,
-              }),
-              failed: fetchReport("reports/memberships-list", {
-                status: ["ended"],
-                is_payment_failed: true,
-                has_pending_no_show_fees: false,
-                ended_because: ["payment_failed"],
-              }),
-              revenue: fetchGraphQL(REVENUE_QUERY, {
-                input: {
-                  periodType: "year",
-                  startDate: `${new Date().getFullYear()}-01-01`,
-                  endDate: `${new Date().getFullYear()}-12-31`,
-                  dateFilterField: "paid",
-                  vatFilter: null,
-                  canHandleSeparateRefunds: true,
-                },
-              }),
-            }
-          : {};
+        const adminPromises = isAdmin ? {
+          subs: fetchReport("reports/customers", { filters: [{ type: "hasMembershipOrClassPass", membershipTypeId: ALL_SUB_IDS, classPassTypeId: [], onlyActiveMembershipsOrClassPasses: false }], returnColumnHeaders: true }),
+          churn: fetchReport("reports/customers", { filters: [{ type: "numberOfSignups", classTypeId: [], membershipTypeId: [], conditionType: "lessThanOrEquals", conditionAmount: 0, averagePerTimeUnit: "month", startDate: last30Start, endDate: last30End, includeClassSignups: true, onlyCheckedInClassSignups: false, includeWaitingListSignups: false, includeLivestreamSignups: false, includeZeroSignups: false }, { type: "hasMembershipOrClassPass", membershipTypeId: RECURRING_SUB_IDS, classPassTypeId: [], onlyActiveMembershipsOrClassPasses: true }], returnColumnHeaders: true }),
+          failed: fetchReport("reports/memberships-list", { status: ["ended"], is_payment_failed: true, has_pending_no_show_fees: false, ended_because: ["payment_failed"] }),
+          revenue: fetchGraphQL(REVENUE_QUERY, { input: { periodType: "year", startDate: `${new Date().getFullYear()}-01-01`, endDate: `${new Date().getFullYear()}-12-31`, dateFilterField: "paid", vatFilter: null, canHandleSeparateRefunds: true } }),
+        } : {};
 
-        // Await all in parallel
         const allKeys = { ...commonPromises, ...adminPromises };
         const entries = Object.entries(allKeys);
         const results = await Promise.all(entries.map(([, p]) => p));
         const data: Record<string, unknown> = {};
-        entries.forEach(([k], i) => {
-          data[k] = results[i];
-        });
+        entries.forEach(([k], i) => { data[k] = results[i]; });
 
         if (cancelled) return;
 
-        // Set shared state
         setLeads(data.leads as Rec[]);
         setTrialNoConv(data.trialNoConv as Rec[]);
         setTrialAttended(data.trialAttended as Rec[]);
-        const extractClasses = (d: unknown): Rec[] => {
-          if (Array.isArray(d)) return d;
-          if (d && typeof d === "object" && "classes" in d) return (d as { classes: Rec[] }).classes;
-          return [];
-        };
+        const extractClasses = (d: unknown): Rec[] => Array.isArray(d) ? d : (d && typeof d === "object" && "classes" in d) ? (d as { classes: Rec[] }).classes : [];
         setTrialClasses(extractClasses(data.trialClasses));
         setAllClasses(extractClasses(data.allClasses));
 
-        // Set admin state
         if (isAdmin) {
           setSubs(data.subs as Rec[]);
-          setMemberships(data.memberships as Rec[]);
           setChurn(data.churn as Rec[]);
           setFailed(data.failed as Rec[]);
           const revData = data.revenue as { data?: { revenueReport?: Rec | Rec[] } };
@@ -278,66 +144,37 @@ export default function DashboardPage() {
         if (!cancelled) setLoading(false);
       }
     }
-
     load();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [refreshKey, isAdmin, fetchYogo, fetchReport, fetchGraphQL, classesUrl, sixMonthsAgo, setLastFetch]);
 
-  /* ─── Derived state: Admin KPIs ─── */
-  // subs = customers from /reports/customers (all with any subscription)
-  const subsCount = subs.length;
-
-  const ptCount = subs.filter((c) => {
-    const plan = getPlan(String(c.has_membership_membership_description || ""));
-    return isPTPlan(plan);
-  }).length;
-  const groupSubsCount = subsCount - ptCount;
-
-  const churnCount = churn.length;
-  const churnPct = subsCount > 0 ? Math.round((churnCount / subsCount) * 100) : 0;
-
-  const failedCount = failed.length;
-
-  // Revenue
+  /* ─── Derived state ─── */
+  const ptCount = subs.filter((c) => isPTPlan(getPlan(String(c.has_membership_membership_description || "")))).length;
+  const groupSubsCount = subs.length - ptCount;
+  const churnPct = subs.length > 0 ? Math.round((churn.length / subs.length) * 100) : 0;
   const revenueTotal = revenueItems.reduce((sum, period) => {
     const items = (period.items || []) as Rec[];
     return sum + items.reduce((s, it) => s + (Number(it.totalInclVat) || 0), 0);
   }, 0);
   const monthsElapsed = new Date().getMonth() + 1;
   const avgMonth = monthsElapsed > 0 ? Math.round(revenueTotal / monthsElapsed) : 0;
+  const sparkData = buildSparkData(revenueItems);
 
-  /* ─── Derived state: Funnel / Sales KPIs ─── */
   const leadsActionable = leads.filter((l) => !isNonActionableLead(l as { email?: string }));
-
   const attendedIds = new Set(trialAttended.map((r) => String(r.id || r.customer_id)));
-  const trialEnriched = trialNoConv.map((t) => ({
-    ...t,
-    attended: attendedIds.has(String(t.id || t.customer_id)),
-  })) as (Rec & { attended: boolean })[];
+  const trialEnriched = trialNoConv.map((t) => ({ ...t, attended: attendedIds.has(String(t.id || t.customer_id)) })) as (Rec & { attended: boolean })[];
   const trialAttendedCount = trialEnriched.filter((t) => t.attended).length;
   const trialNoShowCount = trialEnriched.filter((t) => !t.attended).length;
 
-  // Trial classes — signups by period
   const trialClassesArr = Array.isArray(trialClasses) ? trialClasses : [];
   const trialWithSignups = trialClassesArr.filter((c) => Number(c.signup_count) > 0);
   const newTrialToday = trialWithSignups.filter((c) => isToday(String(c.date))).reduce((s, c) => s + Number(c.signup_count), 0);
   const newTrialWeek = trialWithSignups.filter((c) => isThisWeek(String(c.date))).reduce((s, c) => s + Number(c.signup_count), 0);
   const newTrialMonth = trialWithSignups.filter((c) => isThisMonth(String(c.date))).reduce((s, c) => s + Number(c.signup_count), 0);
 
-  // Visitors (USC / ClassPass / Bruce signups)
   const allClassesArr = Array.isArray(allClasses) ? allClasses : [];
-  const withVisitors = allClassesArr.filter(
-    (c) =>
-      Number(c.urban_sports_club_signup_count) > 0 ||
-      Number(c.classpass_com_signup_count) > 0 ||
-      Number(c.bruce_app_signup_count) > 0
-  );
-  const visitorSum = (c: Rec) =>
-    Number(c.urban_sports_club_signup_count || 0) +
-    Number(c.classpass_com_signup_count || 0) +
-    Number(c.bruce_app_signup_count || 0);
+  const visitorSum = (c: Rec) => Number(c.urban_sports_club_signup_count || 0) + Number(c.classpass_com_signup_count || 0) + Number(c.bruce_app_signup_count || 0);
+  const withVisitors = allClassesArr.filter((c) => visitorSum(c) > 0);
   const visitorsToday = withVisitors.filter((c) => isToday(String(c.date))).reduce((s, c) => s + visitorSum(c), 0);
   const visitorsWeek = withVisitors.filter((c) => isThisWeek(String(c.date))).reduce((s, c) => s + visitorSum(c), 0);
   const visitorsMonth = withVisitors.filter((c) => isThisMonth(String(c.date))).reduce((s, c) => s + visitorSum(c), 0);
@@ -345,372 +182,143 @@ export default function DashboardPage() {
   /* ─── Loading / Error ─── */
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <LoaderIcon className="w-8 h-8 animate-spin text-muted" />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "80px 0" }}>
+        <LoaderIcon />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-20">
-        <div className="text-tone-coral mb-2">Erro ao carregar dados</div>
-        <div className="text-muted text-sm">{error}</div>
+      <div style={{ textAlign: "center", padding: "80px 18px" }}>
+        <div style={{ color: "#FF3D2E", marginBottom: 8 }}>Erro ao carregar dados</div>
+        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>{error}</div>
       </div>
     );
   }
 
-  /* ═══════════════════════════════════════════════════════════════
-     ADMIN VIEW
-  ═══════════════════════════════════════════════════════════════ */
+  /* ─── ADMIN VIEW ─── */
   if (isAdmin) {
+    const actions = [
+      failed.length > 0 && { count: failed.length, label: "pagamentos falhados", detail: "Cartões expirados ou recusados — recuperar receita ou cancelar", cta: "Contactar", tone: "#FF3D2E", href: "/dashboard/failed" },
+      churn.length > 0 && { count: churn.length, label: "membros em risco de churn", detail: `0 aulas nos últimos 30 dias — risco de cancelamento`, cta: "Rever", tone: "#FFB627", href: "/dashboard/churn" },
+      trialAttendedCount > 0 && { count: trialAttendedCount, label: "trials que foram à aula", detail: "Lead quente — fechar venda nas próximas 24-48h", cta: "Follow-up", tone: "#FF2E88", href: "/dashboard/trials" },
+      trialNoShowCount > 0 && { count: trialNoShowCount, label: "trials que faltaram", detail: "Pode ser no-show — confirmar e reagendar", cta: "Reagendar", tone: "#00E5A0", href: "/dashboard/trials" },
+      leadsActionable.length > 0 && { count: leadsActionable.length, label: "leads sem contacto há 7d", detail: "Reactivar conversação antes que esfriem", cta: "WhatsApp", tone: "#A6E22E", href: "/dashboard/leads" },
+    ].filter(Boolean) as { count: number; label: string; detail: string; cta: string; tone: string; href: string }[];
+
     return (
-      <div className="space-y-6">
-        {/* Row 1 — Core KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            icon={<EuroIcon />}
-            label="Receita YTD"
-            value={eur(revenueTotal)}
-            sublabel={`Média ${eur(avgMonth)}/mês`}
-            color="emerald"
-            onClick={() => router.push("/dashboard/revenue")}
-          />
-          <StatCard
-            icon={<UsersIcon />}
-            label="Subscrições ativas"
-            value={subsCount}
-            sublabel={`${groupSubsCount} grupo · ${ptCount} PT`}
-            color="blue"
-            onClick={() => router.push("/dashboard/subscribers")}
-          />
-          <StatCard
-            icon={<TrendIcon />}
-            label="Churn (30d)"
-            value={`${churnCount} (${churnPct}%)`}
-            sublabel="Sem aulas nos últimos 30 dias"
-            color="amber"
-            onClick={() => router.push("/dashboard/churn")}
-          />
-          <StatCard
-            icon={<CardIcon />}
-            label="Pagamentos falhados"
-            value={failedCount}
-            sublabel="Memberships ended"
-            color="red"
-            onClick={() => router.push("/dashboard/failed")}
-          />
-        </div>
-
-        {/* Row 2 — Funnel KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            icon={<UserPlusIcon />}
-            label="Leads"
-            value={leadsActionable.length}
-            sublabel={`${leads.length - leadsActionable.length} não acionáveis filtrados`}
-            color="purple"
-            onClick={() => router.push("/dashboard/leads")}
-          />
-          <StatCard
-            icon={<TargetIcon />}
-            label="Trials sem conversão"
-            value={trialEnriched.length}
-            sublabel={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`}
-            color="pink"
-            onClick={() => router.push("/dashboard/trials")}
-          />
-          <StatCard
-            icon={<ZapIcon />}
-            label="Novos trials"
-            value={newTrialMonth}
-            sublabel={`Hoje: ${newTrialToday} · Semana: ${newTrialWeek}`}
-            color="cyan"
-            onClick={() => router.push("/dashboard/trials")}
-          />
-          <StatCard
-            icon={<UsersIcon />}
-            label="Visitantes"
-            value={visitorsMonth}
-            sublabel={`Hoje: ${visitorsToday} · Semana: ${visitorsWeek}`}
-            color="blue"
-            onClick={() => router.push("/dashboard/classes")}
-          />
-        </div>
-
-        {/* Overview — Recommended actions */}
-        <div className="border border-border-subtle rounded-xl p-5">
-          <h2 className="head text-lg font-semibold mb-4">Ações recomendadas</h2>
-          <div className="space-y-3">
-            {newTrialToday > 0 && (
-              <ActionRow
-                color="electric"
-                label={`${newTrialToday} trial${newTrialToday > 1 ? "s" : ""} agendado${newTrialToday > 1 ? "s" : ""} HOJE — confirmar presença`}
-                onClick={() => router.push("/dashboard/trials")}
-              />
-            )}
-            {visitorsToday > 0 && (
-              <ActionRow
-                color="blue"
-                label={`${visitorsToday} visitante${visitorsToday > 1 ? "s" : ""} USC/CP HOJE — receber bem, converter`}
-                onClick={() => router.push("/dashboard/classes")}
-              />
-            )}
-            {failedCount > 0 && (
-              <ActionRow
-                color="red"
-                label={`${failedCount} pagamentos falhados — contactar ou cancelar`}
-                onClick={() => router.push("/dashboard/failed")}
-              />
-            )}
-            {churnCount > 0 && (
-              <ActionRow
-                color="amber"
-                label={`${churnCount} membros em risco de churn (0 aulas em 30 dias)`}
-                onClick={() => router.push("/dashboard/churn")}
-              />
-            )}
-            {trialAttendedCount > 0 && (
-              <ActionRow
-                color="pink"
-                label={`${trialAttendedCount} trials que foram à aula — follow up para conversão`}
-                onClick={() => router.push("/dashboard/trials")}
-              />
-            )}
-            {trialNoShowCount > 0 && (
-              <ActionRow
-                color="purple"
-                label={`${trialNoShowCount} trials que faltaram — reagendar`}
-                onClick={() => router.push("/dashboard/trials")}
-              />
-            )}
-            {leadsActionable.length > 0 && (
-              <ActionRow
-                color="blue"
-                label={`${leadsActionable.length} leads frios para contactar`}
-                onClick={() => router.push("/dashboard/leads")}
-              />
-            )}
-            {failedCount === 0 &&
-              churnCount === 0 &&
-              trialAttendedCount === 0 &&
-              trialNoShowCount === 0 &&
-              leadsActionable.length === 0 && (
-                <div className="text-muted text-sm py-2">Tudo em ordem — sem ações pendentes.</div>
-              )}
+      <div style={{ paddingBottom: 32 }}>
+        {/* ── Hero: Receita YTD ── */}
+        <div style={{ padding: "4px 18px 14px" }}>
+          <div style={{
+            background: "linear-gradient(135deg, #0F0F14 0%, #12121A 100%)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 18,
+            padding: 18,
+            position: "relative",
+            overflow: "hidden",
+          }}>
+            {/* Glow */}
+            <div style={{
+              position: "absolute", right: -20, top: -20, width: 140, height: 140,
+              background: "radial-gradient(circle, rgba(0,229,160,0.2) 0%, transparent 70%)",
+              borderRadius: "50%",
+            }} />
+            <div style={{ position: "relative" }}>
+              <div className="head" style={{ fontSize: 11, color: "rgba(255,255,255,0.72)", marginBottom: 8 }}>
+                Receita YTD
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 10, marginBottom: 10 }}>
+                <div className="num" style={{ fontSize: 56, color: "#fff", lineHeight: 0.85 }}>
+                  {eur(revenueTotal)}
+                </div>
+                <TrendChip dir="up" value={`Média ${eur(avgMonth)}/mês`} />
+              </div>
+              <Sparkline data={sparkData} accent="#00E5A0" height={56} />
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
+                  Jan {new Date().getFullYear().toString().slice(2)}
+                </span>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>Média {eur(avgMonth)}/mês</span>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>Hoje</span>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* ── KPI grid ── */}
+        <SectionHead title="Indicadores" action="ver todos" onAction={() => router.push("/dashboard/more")} />
+        <div style={{ padding: "0 18px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {/* KPICard.icon color is set by the card's icon-box via color:tone — pass icons without style prop */}
+          <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Subscrições activas" value={subs.length} sub={`${groupSubsCount} grupo · ${ptCount} PT`} tone="#3D7DFF" trendDir="up" trendValue={`+${subs.length}`} onClick={() => router.push("/dashboard/subscribers")} />
+          <KPICard icon={<TrendIcon className="w-3.5 h-3.5" />} label="Churn (30d)" value={churn.length} sub={`${churnPct}% — sem aulas em 30d`} tone="#FFB627" trendDir={churnPct > 10 ? "down" : "flat"} trendValue={`${churnPct}%`} onClick={() => router.push("/dashboard/churn")} />
+          <KPICard icon={<CardIcon className="w-3.5 h-3.5" />} label="Pagamentos falhados" value={failed.length} sub="Memberships ended" tone="#FF3D2E" trendDir={failed.length > 0 ? "down" : "flat"} trendValue={`${failed.length}`} onClick={() => router.push("/dashboard/failed")} />
+          <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Leads" value={leadsActionable.length} sub={`${leads.length - leadsActionable.length} não accionáveis`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
+          <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Trials s/ conv." value={trialEnriched.length} sub={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`} tone="#FF2E88" trendDir={trialEnriched.length > 0 ? "down" : "flat"} trendValue={`${trialEnriched.length}`} onClick={() => router.push("/dashboard/trials")} />
+          <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Novos trials" value={newTrialToday} sub={`Semana ${newTrialWeek} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialToday > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
+          <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#3D7DFF" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
+        </div>
+
+        {/* ── Action rows ── */}
+        <SectionHead title="Acções recomendadas" count={actions.length} />
+        <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {actions.length === 0 && (
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", padding: "8px 0" }}>
+              Tudo em ordem — sem acções pendentes.
+            </div>
+          )}
+          {actions.map((a) => (
+            <ActionRowHome
+              key={a.href + a.label}
+              count={a.count}
+              label={a.label}
+              detail={a.detail}
+              cta={a.cta}
+              tone={a.tone}
+              onClick={() => router.push(a.href)}
+              onCta={() => router.push(a.href)}
+            />
+          ))}
+        </div>
       </div>
     );
   }
 
-  /* ═══════════════════════════════════════════════════════════════
-     SALES VIEW
-  ═══════════════════════════════════════════════════════════════ */
-  const trialsWentToClass = trialEnriched.filter((t) => t.attended);
-  const trialsMissed = trialEnriched.filter((t) => !t.attended);
-
+  /* ─── SALES VIEW ─── */
   return (
-    <div className="space-y-6">
-      {/* Funnel KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          icon={<UserPlusIcon />}
-          label="Leads"
-          value={leadsActionable.length}
-          sublabel={`${leads.length - leadsActionable.length} filtrados`}
-          color="purple"
-          onClick={() => router.push("/dashboard/leads")}
-        />
-        <StatCard
-          icon={<TargetIcon />}
-          label="Trials sem conversão"
-          value={trialEnriched.length}
-          sublabel={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`}
-          color="pink"
-          onClick={() => router.push("/dashboard/trials")}
-        />
-        <StatCard
-          icon={<ZapIcon />}
-          label="Novos trials"
-          value={newTrialToday}
-          sublabel={`Semana: ${newTrialWeek} · Mês: ${newTrialMonth}`}
-          color="cyan"
-          onClick={() => router.push("/dashboard/classes")}
-        />
-        <StatCard
-          icon={<UsersIcon />}
-          label="Visitantes"
-          value={visitorsToday}
-          sublabel={`Semana: ${visitorsWeek} · Mês: ${visitorsMonth}`}
-          color="blue"
-          onClick={() => router.push("/dashboard/classes")}
-        />
+    <div style={{ paddingBottom: 32 }}>
+      <SectionHead title="Funil de Conversão" />
+      <div style={{ padding: "0 18px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Leads" value={leadsActionable.length} sub={`${leads.length - leadsActionable.length} filtrados`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
+        <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Trials s/ conv." value={trialEnriched.length} sub={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`} tone="#FF2E88" trendDir="down" trendValue={`${trialEnriched.length}`} onClick={() => router.push("/dashboard/trials")} />
+        <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Novos trials" value={newTrialToday} sub={`Semana ${newTrialWeek} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialToday > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
+        <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#3D7DFF" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
       </div>
 
-      {/* Mini stats row */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-        <MiniStat label="Trials hoje" value={newTrialToday} color="cyan" />
-        <MiniStat label="Trials semana" value={newTrialWeek} color="cyan" />
-        <MiniStat label="Trials mês" value={newTrialMonth} color="cyan" />
-        <MiniStat label="Visitantes hoje" value={visitorsToday} color="blue" />
-        <MiniStat label="Visitantes semana" value={visitorsWeek} color="blue" />
-        <MiniStat label="Visitantes mês" value={visitorsMonth} color="blue" />
+      <SectionHead title="Acções recomendadas" count={trialAttendedCount + trialNoShowCount + leadsActionable.length} />
+      <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {trialAttendedCount > 0 && <ActionRowHome count={trialAttendedCount} label="trials que foram à aula" detail="Lead quente — fechar venda nas próximas 24-48h" cta="Follow-up" tone="#FF2E88" onClick={() => router.push("/dashboard/trials")} onCta={() => router.push("/dashboard/trials")} />}
+        {trialNoShowCount > 0 && <ActionRowHome count={trialNoShowCount} label="trials que faltaram" detail="Confirmar e reagendar" cta="Reagendar" tone="#00E5A0" onClick={() => router.push("/dashboard/trials")} onCta={() => router.push("/dashboard/trials")} />}
+        {leadsActionable.length > 0 && <ActionRowHome count={leadsActionable.length} label="leads sem contacto há 7d" detail="Reactivar conversação antes que esfriem" cta="WhatsApp" tone="#A6E22E" onClick={() => router.push("/dashboard/leads")} onCta={() => router.push("/dashboard/leads")} />}
       </div>
-
-      {/* Priority 1: Trials que foram à aula */}
-      <SalesSection
-        title="Prioridade 1: Trials que foram à aula"
-        borderColor="border-tone-magenta"
-        count={trialsWentToClass.length}
-        emptyText="Nenhum trial que foi à aula pendente."
-      >
-        {trialsWentToClass.slice(0, 10).map((t, i) => (
-          <LeadRow
-            key={String(t.id || t.customer_id || i)}
-            name={`${t.first_name || ""} ${t.last_name || ""}`.trim() || "Sem nome"}
-            email={String(t.email || "")}
-            pill={<Pill color="pink"><CheckIcon /> Foi à aula</Pill>}
-          />
-        ))}
-        {trialsWentToClass.length > 10 && (
-          <button
-            onClick={() => router.push("/dashboard/trials")}
-            className="text-tone-magenta text-sm hover:underline mt-2"
-          >
-            Ver todos ({trialsWentToClass.length})
-          </button>
-        )}
-      </SalesSection>
-
-      {/* Priority 2: Trials que faltaram */}
-      <SalesSection
-        title="Prioridade 2: Trials que faltaram"
-        borderColor="border-tone-amber"
-        count={trialsMissed.length}
-        emptyText="Nenhum trial que faltou pendente."
-      >
-        {trialsMissed.slice(0, 10).map((t, i) => (
-          <LeadRow
-            key={String(t.id || t.customer_id || i)}
-            name={`${t.first_name || ""} ${t.last_name || ""}`.trim() || "Sem nome"}
-            email={String(t.email || "")}
-            pill={<Pill color="amber"><XIcon /> Faltou</Pill>}
-          />
-        ))}
-        {trialsMissed.length > 10 && (
-          <button
-            onClick={() => router.push("/dashboard/trials")}
-            className="text-tone-amber text-sm hover:underline mt-2"
-          >
-            Ver todos ({trialsMissed.length})
-          </button>
-        )}
-      </SalesSection>
-
-      {/* Priority 3: Leads frios */}
-      <SalesSection
-        title="Prioridade 3: Leads frios"
-        borderColor="border-tone-magenta"
-        count={leadsActionable.length}
-        emptyText="Nenhum lead frio pendente."
-      >
-        {leadsActionable.slice(0, 10).map((l, i) => (
-          <LeadRow
-            key={String(l.id || l.customer_id || i)}
-            name={`${l.first_name || ""} ${l.last_name || ""}`.trim() || "Sem nome"}
-            email={String(l.email || "")}
-            pill={<Pill color="purple">Lead</Pill>}
-          />
-        ))}
-        {leadsActionable.length > 10 && (
-          <button
-            onClick={() => router.push("/dashboard/leads")}
-            className="text-tone-magenta text-sm hover:underline mt-2"
-          >
-            Ver todos ({leadsActionable.length})
-          </button>
-        )}
-      </SalesSection>
     </div>
   );
 }
 
-/* ─── Sub-components ─── */
-
-function ActionRow({
-  color,
-  label,
-  onClick,
-}: {
-  color: "red" | "amber" | "pink" | "purple" | "blue" | "electric";
-  label: string;
-  onClick: () => void;
-}) {
-  const dotColor = {
-    red: "bg-tone-coral",
-    amber: "bg-tone-amber",
-    pink: "bg-tone-magenta",
-    purple: "bg-tone-magenta",
-    blue: "bg-tone-blue",
-    electric: "bg-accent",
-  }[color];
-
+/* ── SectionHead ── */
+function SectionHead({ title, count, action, onAction }: { title: string; count?: number; action?: string; onAction?: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-3 w-full text-left p-3 rounded-lg bg-surface hover:bg-surface2/50 transition"
-    >
-      <span className={`w-2 h-2 rounded-full ${dotColor} shrink-0`} />
-      <span className="text-sm text-muted-strong">{label}</span>
-    </button>
-  );
-}
-
-function SalesSection({
-  title,
-  borderColor,
-  count,
-  emptyText,
-  children,
-}: {
-  title: string;
-  borderColor: string;
-  count: number;
-  emptyText: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={`border ${borderColor} rounded-xl p-5`}>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="head text-lg font-semibold">{title}</h2>
-        <span className="text-muted text-sm">{count} registos</span>
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", padding: "18px 18px 10px" }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <h3 className="head" style={{ margin: 0, fontSize: 18, color: "#fff" }}>{title}</h3>
+        {count != null && <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{count}</span>}
       </div>
-      {count === 0 ? (
-        <div className="text-muted text-sm py-2">{emptyText}</div>
-      ) : (
-        <div className="space-y-2">{children}</div>
+      {action && (
+        <button onClick={onAction} style={{ background: "transparent", border: "none", color: "#00E5A0", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", cursor: "pointer", display: "flex", alignItems: "center", gap: 3, padding: 0, fontFamily: "inherit" }} className="tap">
+          {action} ›
+        </button>
       )}
-    </div>
-  );
-}
-
-function LeadRow({
-  name,
-  email,
-  pill,
-}: {
-  name: string;
-  email: string;
-  pill: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-surface">
-      <div>
-        <div className="text-sm font-medium text-white">{name}</div>
-        <div className="text-xs text-muted">{email}</div>
-      </div>
-      {pill}
     </div>
   );
 }
