@@ -28,7 +28,9 @@
       "Bash(python3 -c \"import sys,json; print\\(json.dumps\\(json.load\\(sys.stdin\\),indent=2\\)\\)\")",
       "Bash(vercel ls *)",
       "Bash(node -e ' *)",
-      "Bash(bash /Users/ricore/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir /Users/ricore/Documents/Project/strikehousedashboard)"
+      "Bash(bash /Users/ricore/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir /Users/ricore/Documents/Project/strikehousedashboard)",
+      "Bash(vercel inspect *)",
+      "Bash(vercel logs *)"
     ],
     "additionalDirectories": [
       "/Users/ricore/Documents/Project/strikehousedashboard/src/app/api/yogo"
