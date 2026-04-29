@@ -251,8 +251,13 @@ export default function DashboardPage() {
         setLeads(data.leads as Rec[]);
         setTrialNoConv(data.trialNoConv as Rec[]);
         setTrialAttended(data.trialAttended as Rec[]);
-        setTrialClasses(Array.isArray(data.trialClasses) ? (data.trialClasses as Rec[]) : []);
-        setAllClasses(Array.isArray(data.allClasses) ? (data.allClasses as Rec[]) : []);
+        const extractClasses = (d: unknown): Rec[] => {
+          if (Array.isArray(d)) return d;
+          if (d && typeof d === "object" && "classes" in d) return (d as { classes: Rec[] }).classes;
+          return [];
+        };
+        setTrialClasses(extractClasses(data.trialClasses));
+        setAllClasses(extractClasses(data.allClasses));
 
         // Set admin state
         if (isAdmin) {
