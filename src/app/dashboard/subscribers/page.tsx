@@ -3,12 +3,11 @@
 import { useEffect, useCallback, useState } from "react";
 import { useYogoFetch } from "@/hooks/use-yogo";
 import { useDashboard } from "@/app/dashboard/layout";
-import { StatCard } from "@/components/stat-card";
-import { PaymentBadge } from "@/components/payment-badge";
-import { LoaderIcon, UsersIcon, EuroIcon } from "@/components/icons";
-import { getPlan, isPTPlan, planColor, eur } from "@/lib/utils";
+import { LoaderIcon } from "@/components/icons";
+import { getPlan, eur } from "@/lib/utils";
 import { ALL_SUB_IDS, PLAN_ORDER, PLAN_VALUES } from "@/lib/constants";
-import { Pill } from "@/components/pill";
+import { SubRow } from "@/components/sub-row";
+import { type SubStatus } from "@/components/status-pill";
 
 interface Customer {
   id: number;
@@ -42,6 +41,7 @@ export default function SubscribersPage() {
   const [planGroups, setPlanGroups] = useState<PlanGroup[]>([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [activeFilter, setActiveFilter] = useState<"all" | "active" | "risk" | "failed">("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,44 +110,96 @@ export default function SubscribersPage() {
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
-  const ptCount = planGroups.filter((g) => isPTPlan(g.plan)).reduce((s, g) => s + g.customers.length, 0);
-  const groupCount = totalCount - ptCount;
-
   if (loading) return <div className="py-20 flex justify-center"><LoaderIcon /></div>;
   if (error) return <div className="py-20 text-center text-tone-coral text-sm">Erro: {error}</div>;
 
-  return (
-    <div className="space-y-8">
-      <h1 className="head text-xl font-bold">Subscritores ({totalCount})</h1>
+  // Derive flat list with status from paid_until
+  const today = new Date().toISOString().slice(0, 10);
+  type CustomerRow = Customer & { paid_until?: string; plan: string; daysLeft: number; status: SubStatus; paidUntil: string };
+  const allCustomers: CustomerRow[] = planGroups.flatMap((g) =>
+    g.customers.map((c): CustomerRow => {
+      const paidUntil = c.paid_until ?? "";
+      const daysLeft = paidUntil
+        ? Math.round((new Date(paidUntil).getTime() - Date.now()) / 86400000)
+        : 0;
+      let status: SubStatus = "active";
+      if (!paidUntil || paidUntil < today) status = "expired";
+      else if (daysLeft <= 7) status = "risk";
+      return { ...c, plan: g.plan, daysLeft, status, paidUntil };
+    })
+  );
 
-      <div className="grid grid-cols-3 gap-4">
-        <StatCard icon={<UsersIcon />} label="Total subscritores" value={totalCount} sublabel={`${groupCount} aulas + ${ptCount} PT`} color="blue" />
-        <StatCard icon={<EuroIcon />} label="Receita estimada / mês" value={eur(totalRevenue)} color="emerald" />
-        <StatCard icon={<UsersIcon />} label="PTs" value={ptCount} color="cyan" />
+  const filtered =
+    activeFilter === "all" ? allCustomers :
+    activeFilter === "failed" ? allCustomers.filter((c) => c.status === "failed" || c.status === "expired") :
+    allCustomers.filter((c) => c.status === activeFilter);
+
+  const filters = [
+    { id: "all" as const,    label: "Todos",   count: allCustomers.length },
+    { id: "active" as const, label: "Activos", count: allCustomers.filter((c) => c.status === "active").length },
+    { id: "risk" as const,   label: "Risco",   count: allCustomers.filter((c) => c.status === "risk").length },
+    { id: "failed" as const, label: "Falhas",  count: allCustomers.filter((c) => c.status === "failed" || c.status === "expired").length },
+  ];
+
+  return (
+    <div style={{ paddingBottom: 32 }}>
+      {/* Summary cards */}
+      <div style={{ padding: "4px 18px 14px", display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 10 }}>
+        <div style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 14 }}>
+          <div className="head" style={{ fontSize: 10, color: "rgba(255,255,255,0.72)", marginBottom: 6 }}>SUBSCRITORES</div>
+          <div className="num" style={{ fontSize: 38, color: "#fff" }}>{totalCount}</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>activos · todos os planos</div>
+        </div>
+        <div style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 14 }}>
+          <div className="head" style={{ fontSize: 10, color: "rgba(255,255,255,0.72)", marginBottom: 6 }}>MRR ESTIMADO</div>
+          <div className="num" style={{ fontSize: 38, color: "#00E5A0" }}>{eur(totalRevenue)}</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>por mês · receita activa</div>
+        </div>
       </div>
 
-      <div className="space-y-6">
-        {planGroups.map(({ plan, customers }) => (
-          <div key={plan} className="bg-surface rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Pill color={planColor(plan) as import("@/lib/constants").ColorName}>{plan}</Pill>
-              </div>
-              <span className="text-muted-strong text-sm"><span className="num">{customers.length}</span> · ~{eur(customers.length * (PLAN_VALUES[plan] || 0))}/mês</span>
-            </div>
-            <div className="space-y-2">
-              {customers.map((c) => (
-                <div key={c.id} className="flex items-center justify-between py-2 border-b border-border-subtle last:border-0">
-                  <div>
-                    <div className="text-sm font-medium text-white">{[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}</div>
-                    <div className="text-xs text-muted">{c.email || "—"}{c.phone ? ` · ${c.phone}` : ""}</div>
-                  </div>
-                  <PaymentBadge paidUntil={c.paid_until} />
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Filter chips */}
+      <div style={{ padding: "0 18px 10px", display: "flex", gap: 6, overflowX: "auto" }} className="scrollbox">
+        {filters.map((f) => {
+          const isActive = activeFilter === f.id;
+          return (
+            <button
+              key={f.id}
+              onClick={() => setActiveFilter(f.id)}
+              style={{
+                flexShrink: 0, padding: "7px 12px", borderRadius: 999,
+                background: isActive ? "#00E5A0" : "#0F0F14",
+                color: isActive ? "#0a0a0a" : "rgba(255,255,255,0.72)",
+                border: `1px solid ${isActive ? "#00E5A0" : "rgba(255,255,255,0.06)"}`,
+                fontSize: 11, fontWeight: 700, letterSpacing: "0.02em",
+                cursor: "pointer", fontFamily: "inherit",
+                display: "inline-flex", alignItems: "center", gap: 5,
+              }}
+              className="tap"
+            >
+              {f.label}
+              <span style={{ fontSize: 10, opacity: 0.7 }}>{f.count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Subscriber list */}
+      <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 6 }}>
+        {filtered.map((c) => (
+          <SubRow
+            key={c.id}
+            name={`${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "Sem nome"}
+            plan={c.plan}
+            detail={c.paidUntil ? `até ${c.paidUntil}` : "—"}
+            status={c.status}
+            daysUntilRenewal={c.daysLeft}
+          />
         ))}
+        {filtered.length === 0 && (
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", padding: "8px 0" }}>
+            Nenhum subscritor nesta categoria.
+          </div>
+        )}
       </div>
     </div>
   );
