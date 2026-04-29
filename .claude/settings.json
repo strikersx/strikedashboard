@@ -18,7 +18,15 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('active:', len\\(d\\)\\)\")",
       "Bash(python3 -c ' *)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('customers with sub:', len\\(d.get\\('customers',[]\\)\\)\\)\")",
-      "Bash(file /Users/ricore/Documents/Project/strikehousedashboard/StrikeDashboard/uploads/*.png)"
+      "Bash(file /Users/ricore/Documents/Project/strikehousedashboard/StrikeDashboard/uploads/*.png)",
+      "Bash(vercel --version)",
+      "Bash(vercel whoami *)",
+      "Bash(vercel env *)",
+      "Bash(vercel link *)",
+      "Bash(vercel --prod)",
+      "Bash(vercel --prod --force)",
+      "Bash(python3 -c \"import sys,json; print\\(json.dumps\\(json.load\\(sys.stdin\\),indent=2\\)\\)\")",
+      "Bash(vercel ls *)"
     ],
     "additionalDirectories": [
       "/Users/ricore/Documents/Project/strikehousedashboard/src/app/api/yogo"

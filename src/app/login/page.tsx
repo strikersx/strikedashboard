@@ -21,7 +21,7 @@ export default function LoginPage() {
         body: JSON.stringify({ password }),
       });
       if (res.ok) {
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       } else {
         setError("Senha inválida");
       }
