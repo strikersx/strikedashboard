@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useCallback, createContext, useContext } from "react";
-import { Nav } from "@/components/nav";
+import { AppHeader } from "@/components/app-header";
+import { LiveStatus } from "@/components/live-status";
+import { BottomTabBar } from "@/components/bottom-tab-bar";
 import { useAuth } from "@/hooks/use-auth";
 import { LoaderIcon } from "@/components/icons";
 import { clearYogoCache } from "@/hooks/use-yogo";
@@ -34,7 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-bg">
         <LoaderIcon />
       </div>
     );
@@ -44,14 +46,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <DashboardContext.Provider value={{ refreshKey, lastFetch, setLastFetch }}>
-      <div className="p-3 sm:p-4 md:p-6">
-        <div className="max-w-7xl mx-auto">
-          <Nav role={role} onRefresh={handleRefresh} onLogout={logout} lastFetch={lastFetch} />
-          <div className="bg-surface border border-border-subtle rounded-2xl p-3 sm:p-4 md:p-6 pb-20 md:pb-0">{children}</div>
-          <div className="mt-6 text-center text-muted text-xs">
-            Yogo Booking API · Next.js · v2.0 · {role}
-          </div>
+      <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", background: "#07070a" }}>
+        {/* Sticky header */}
+        <div style={{ position: "sticky", top: 0, zIndex: 20 }}>
+          <AppHeader role={role} onRefresh={handleRefresh} onLogout={logout} lastFetch={lastFetch} />
+          <LiveStatus lastFetch={lastFetch} />
         </div>
+
+        {/* Scrollable content — pb-28 clears the fixed tab bar */}
+        <main className="scrollbox" style={{ flex: 1, overflowY: "auto", paddingBottom: 112 }}>
+          {children}
+        </main>
+
+        {/* Fixed bottom tab bar */}
+        <BottomTabBar role={role} />
       </div>
     </DashboardContext.Provider>
   );
