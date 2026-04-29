@@ -102,7 +102,7 @@ export function AppHeader({ role, onRefresh, onLogout, lastFetch }: AppHeaderPro
         backdropFilter: "blur(8px)",
       }}
     >
-      {/* Logo */}
+      {/* Logo — color:#0a0a0a on container so SVG currentColor is dark */}
       <div
         style={{
           width: 38,
@@ -113,9 +113,10 @@ export function AppHeader({ role, onRefresh, onLogout, lastFetch }: AppHeaderPro
           placeItems: "center",
           flexShrink: 0,
           boxShadow: "0 4px 16px rgba(0,229,160,0.35)",
+          color: "#0a0a0a",
         }}
       >
-        <TrophyIcon className="w-5 h-5" style={{ color: "#0a0a0a" }} />
+        <TrophyIcon className="w-5 h-5" />
       </div>
 
       {/* Title + subtitle */}
@@ -669,6 +670,7 @@ export function KPICard({ icon, label, value, sub, tone, trendDir, trendValue, o
       />
 
       {/* Top row: icon box + trend chip */}
+      {/* color:tone on container → SVG currentColor inherits it, no style prop needed on icons */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div
           style={{
@@ -678,6 +680,7 @@ export function KPICard({ icon, label, value, sub, tone, trendDir, trendValue, o
             background: `${tone}22`,
             display: "grid",
             placeItems: "center",
+            color: tone,
           }}
         >
           {icon}
@@ -1089,13 +1092,14 @@ export default function DashboardPage() {
         {/* ── KPI grid ── */}
         <SectionHead title="Indicadores" action="ver todos" onAction={() => router.push("/dashboard/more")} />
         <div style={{ padding: "0 18px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <KPICard icon={<UsersIcon className="w-3.5 h-3.5" style={{ color: "#3D7DFF" }} />} label="Subscrições activas" value={subs.length} sub={`${groupSubsCount} grupo · ${ptCount} PT`} tone="#3D7DFF" trendDir="up" trendValue={`+${subs.length}`} onClick={() => router.push("/dashboard/subscribers")} />
-          <KPICard icon={<TrendIcon className="w-3.5 h-3.5" style={{ color: "#FFB627" }} />} label="Churn (30d)" value={churn.length} sub={`${churnPct}% — sem aulas em 30d`} tone="#FFB627" trendDir={churnPct > 10 ? "down" : "flat"} trendValue={`${churnPct}%`} onClick={() => router.push("/dashboard/churn")} />
-          <KPICard icon={<CardIcon className="w-3.5 h-3.5" style={{ color: "#FF3D2E" }} />} label="Pagamentos falhados" value={failed.length} sub="Memberships ended" tone="#FF3D2E" trendDir={failed.length > 0 ? "down" : "flat"} trendValue={`${failed.length}`} onClick={() => router.push("/dashboard/failed")} />
-          <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" style={{ color: "#A6E22E" }} />} label="Leads" value={leadsActionable.length} sub={`${leads.length - leadsActionable.length} não accionáveis`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
-          <KPICard icon={<TargetIcon className="w-3.5 h-3.5" style={{ color: "#FF2E88" }} />} label="Trials s/ conv." value={trialEnriched.length} sub={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`} tone="#FF2E88" trendDir={trialEnriched.length > 0 ? "down" : "flat"} trendValue={`${trialEnriched.length}`} onClick={() => router.push("/dashboard/trials")} />
-          <KPICard icon={<ZapIcon className="w-3.5 h-3.5" style={{ color: "#00E5A0" }} />} label="Novos trials" value={newTrialToday} sub={`Semana ${newTrialWeek} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialToday > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
-          <KPICard icon={<UsersIcon className="w-3.5 h-3.5" style={{ color: "#3D7DFF" }} />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#3D7DFF" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
+          {/* KPICard.icon color is set by the card's icon-box via color:tone — pass icons without style prop */}
+          <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Subscrições activas" value={subs.length} sub={`${groupSubsCount} grupo · ${ptCount} PT`} tone="#3D7DFF" trendDir="up" trendValue={`+${subs.length}`} onClick={() => router.push("/dashboard/subscribers")} />
+          <KPICard icon={<TrendIcon className="w-3.5 h-3.5" />} label="Churn (30d)" value={churn.length} sub={`${churnPct}% — sem aulas em 30d`} tone="#FFB627" trendDir={churnPct > 10 ? "down" : "flat"} trendValue={`${churnPct}%`} onClick={() => router.push("/dashboard/churn")} />
+          <KPICard icon={<CardIcon className="w-3.5 h-3.5" />} label="Pagamentos falhados" value={failed.length} sub="Memberships ended" tone="#FF3D2E" trendDir={failed.length > 0 ? "down" : "flat"} trendValue={`${failed.length}`} onClick={() => router.push("/dashboard/failed")} />
+          <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Leads" value={leadsActionable.length} sub={`${leads.length - leadsActionable.length} não accionáveis`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
+          <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Trials s/ conv." value={trialEnriched.length} sub={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`} tone="#FF2E88" trendDir={trialEnriched.length > 0 ? "down" : "flat"} trendValue={`${trialEnriched.length}`} onClick={() => router.push("/dashboard/trials")} />
+          <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Novos trials" value={newTrialToday} sub={`Semana ${newTrialWeek} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialToday > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
+          <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#3D7DFF" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
         </div>
 
         {/* ── Action rows ── */}
@@ -1128,10 +1132,10 @@ export default function DashboardPage() {
     <div style={{ paddingBottom: 32 }}>
       <SectionHead title="Funil de Conversão" />
       <div style={{ padding: "0 18px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" style={{ color: "#A6E22E" }} />} label="Leads" value={leadsActionable.length} sub={`${leads.length - leadsActionable.length} filtrados`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
-        <KPICard icon={<TargetIcon className="w-3.5 h-3.5" style={{ color: "#FF2E88" }} />} label="Trials s/ conv." value={trialEnriched.length} sub={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`} tone="#FF2E88" trendDir="down" trendValue={`${trialEnriched.length}`} onClick={() => router.push("/dashboard/trials")} />
-        <KPICard icon={<ZapIcon className="w-3.5 h-3.5" style={{ color: "#00E5A0" }} />} label="Novos trials" value={newTrialToday} sub={`Semana ${newTrialWeek} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialToday > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
-        <KPICard icon={<UsersIcon className="w-3.5 h-3.5" style={{ color: "#3D7DFF" }} />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#3D7DFF" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
+        <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Leads" value={leadsActionable.length} sub={`${leads.length - leadsActionable.length} filtrados`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
+        <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Trials s/ conv." value={trialEnriched.length} sub={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`} tone="#FF2E88" trendDir="down" trendValue={`${trialEnriched.length}`} onClick={() => router.push("/dashboard/trials")} />
+        <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Novos trials" value={newTrialToday} sub={`Semana ${newTrialWeek} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialToday > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
+        <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#3D7DFF" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
       </div>
 
       <SectionHead title="Acções recomendadas" count={trialAttendedCount + trialNoShowCount + leadsActionable.length} />
