@@ -1,0 +1,160 @@
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;600&display=swap');
+  .phone { width: 200px; background: #07070a; border-radius: 28px; overflow: hidden; border: 1.5px solid rgba(255,255,255,0.12); font-family: 'Inter', sans-serif; position: relative; }
+  .phone-screen { height: 380px; overflow: hidden; position: relative; }
+  .ph { color: rgba(255,255,255,0.5); font-size: 9px; }
+  .num { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; }
+  .surf { background: #0F0F14; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 10px; }
+  /* option labels */
+  .opt-label { font-size: 13px; font-weight: 600; color: #fff; margin-top: 10px; text-align: center; }
+  .opt-sub { font-size: 11px; color: rgba(255,255,255,0.5); text-align: center; margin-top: 3px; }
+  .phones-row { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; }
+</style>
+
+<h2>Navegação: qual o layout?</h2>
+<p class="subtitle">A maior decisão estrutural — afecta o layout de todas as páginas</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Bottom tab bar (protótipo exacto)</h3>
+      <p>Barra de tabs na base, sticky header no topo com logo. Idêntico ao protótipo. Máxima fidelidade, feeling de app nativa. Melhor para mobile.</p>
+      <div class="phones-row" style="margin-top:14px">
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="phone-screen">
+              <!-- Header -->
+              <div style="display:flex;align-items:center;gap:8px;padding:12px 12px 8px;background:linear-gradient(180deg,#07070a 0%,#07070a 70%,rgba(7,7,10,0) 100%)">
+                <div style="width:28px;height:28px;border-radius:7px;background:linear-gradient(140deg,#00E5A0,#00E5A0cc);display:grid;place-items:center;flex-shrink:0">
+                  <span style="font-size:14px">🏆</span>
+                </div>
+                <div style="flex:1">
+                  <div class="num" style="font-size:12px;color:#fff">STRIKER'S HOUSE</div>
+                  <div class="ph" style="font-size:8px">Carcavelos · Admin ▾</div>
+                </div>
+                <div style="width:26px;height:26px;border-radius:7px;background:#0F0F14;border:1px solid rgba(255,255,255,0.06);display:grid;place-items:center">
+                  <span style="font-size:10px">↺</span>
+                </div>
+              </div>
+              <!-- Live pill -->
+              <div style="margin:0 10px 8px;padding:7px 10px;background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-radius:10px;display:flex;align-items:center;gap:7px">
+                <span style="width:6px;height:6px;border-radius:50%;background:#00E5A0;display:block"></span>
+                <span style="font-size:9px;color:rgba(255,255,255,0.72)">LIVE</span>
+                <span style="flex:1;font-size:9px;color:rgba(255,255,255,0.5);text-align:right;font-family:monospace">13:57:37</span>
+              </div>
+              <!-- Hero card -->
+              <div style="margin:0 10px;background:linear-gradient(135deg,#0F0F14 0%,#12121A 100%);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:12px">
+                <div style="font-size:8px;color:rgba(255,255,255,0.72);margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em">Receita YTD</div>
+                <div style="display:flex;align-items:flex-end;gap:7px;margin-bottom:6px">
+                  <div class="num" style="font-size:36px;color:#fff;line-height:0.85">€4136</div>
+                  <span style="font-size:9px;font-weight:700;color:#A6E22E;background:rgba(166,226,46,0.12);padding:2px 5px;border-radius:4px">+12%</span>
+                </div>
+                <!-- Mini sparkline -->
+                <svg viewBox="0 0 160 28" style="width:100%;height:28px;display:block">
+                  <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00E5A0" stop-opacity="0.3"/><stop offset="100%" stop-color="#00E5A0" stop-opacity="0"/></linearGradient></defs>
+                  <path d="M0 24 L16 22 L32 20 L48 21 L64 18 L80 15 L96 13 L112 11 L128 10 L144 9 L160 8 L160 28 L0 28 Z" fill="url(#sg)"/>
+                  <path d="M0 24 L16 22 L32 20 L48 21 L64 18 L80 15 L96 13 L112 11 L128 10 L144 9 L160 8" fill="none" stroke="#00E5A0" stroke-width="1.5" stroke-linecap="round"/>
+                  <circle cx="160" cy="8" r="2.5" fill="#00E5A0" stroke="#07070a" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <!-- KPI grid -->
+              <div style="margin:8px 10px 0;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <div style="background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px">
+                  <div class="num" style="font-size:22px;color:#fff">73</div>
+                  <div style="font-size:8px;color:rgba(255,255,255,0.5)">Subscrições</div>
+                </div>
+                <div style="background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px">
+                  <div class="num" style="font-size:22px;color:#fff">8</div>
+                  <div style="font-size:8px;color:rgba(255,255,255,0.5)">Churn (30d)</div>
+                </div>
+              </div>
+              <!-- Bottom tab bar -->
+              <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(7,7,10,0.95);border-top:1px solid rgba(255,255,255,0.06);padding:6px 2px 12px;display:flex">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3;padding:4px 0">
+                  <span style="font-size:13px">🏠</span>
+                  <span style="font-size:7.5px;color:#00E5A0;font-weight:600">Início</span>
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3;padding:4px 0">
+                  <span style="font-size:13px">⬇</span>
+                  <span style="font-size:7.5px;color:rgba(255,255,255,0.5);font-weight:600">Funil</span>
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3;padding:4px 0">
+                  <span style="font-size:13px">👥</span>
+                  <span style="font-size:7.5px;color:rgba(255,255,255,0.5);font-weight:600">Subs</span>
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3;padding:4px 0">
+                  <span style="font-size:13px">🔥</span>
+                  <span style="font-size:7.5px;color:rgba(255,255,255,0.5);font-weight:600">Leads</span>
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3;padding:4px 0">
+                  <span style="font-size:13px">⋯</span>
+                  <span style="font-size:7.5px;color:rgba(255,255,255,0.5);font-weight:600">Mais</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="opt-label">Protótipo exacto</div>
+          <div class="opt-sub">Tab bar em baixo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Top nav adaptado (web-friendly)</h3>
+      <p>Mantém o top nav actual mas aplica os design tokens do protótipo: fontes, cores, KPI cards, hero card com sparkline, action rows. Mais natural em desktop.</p>
+      <div class="phones-row" style="margin-top:14px">
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="phone-screen">
+              <!-- Top nav -->
+              <div style="background:#0F0F14;border-bottom:1px solid rgba(255,255,255,0.06);padding:8px 10px;display:flex;align-items:center;gap:6px">
+                <div style="width:22px;height:22px;border-radius:6px;background:#00E5A0;display:grid;place-items:center">
+                  <span style="font-size:11px">🏆</span>
+                </div>
+                <div class="num" style="font-size:11px;color:#fff;flex:1">STRIKER'S</div>
+                <span style="font-size:7.5px;color:#00E5A0;font-weight:700">Admin ▾</span>
+              </div>
+              <!-- Nav tabs (horizontal scroll) -->
+              <div style="display:flex;gap:4px;padding:6px 10px;overflow:hidden;border-bottom:1px solid rgba(255,255,255,0.06)">
+                <div style="padding:4px 8px;background:#00E5A0;border-radius:6px;font-size:8px;font-weight:700;color:#0a0a0a;white-space:nowrap">Início</div>
+                <div style="padding:4px 8px;border-radius:6px;font-size:8px;font-weight:700;color:rgba(255,255,255,0.5);white-space:nowrap">Funil</div>
+                <div style="padding:4px 8px;border-radius:6px;font-size:8px;font-weight:700;color:rgba(255,255,255,0.5);white-space:nowrap">Subs</div>
+                <div style="padding:4px 8px;border-radius:6px;font-size:8px;font-weight:700;color:rgba(255,255,255,0.5);white-space:nowrap">Leads</div>
+              </div>
+              <!-- Hero card -->
+              <div style="margin:8px 10px 0;background:linear-gradient(135deg,#0F0F14 0%,#12121A 100%);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:10px">
+                <div style="font-size:8px;color:rgba(255,255,255,0.72);margin-bottom:4px;font-weight:700;text-transform:uppercase">Receita YTD</div>
+                <div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:5px">
+                  <div class="num" style="font-size:32px;color:#fff;line-height:0.85">€4136</div>
+                  <span style="font-size:9px;font-weight:700;color:#A6E22E;background:rgba(166,226,46,0.12);padding:2px 4px;border-radius:3px">+12%</span>
+                </div>
+                <svg viewBox="0 0 140 22" style="width:100%;height:22px;display:block">
+                  <path d="M0 20 L14 18 L28 17 L42 17.5 L56 15 L70 12 L84 10 L98 9 L112 8 L126 7 L140 6 L140 22 L0 22 Z" fill="rgba(0,229,160,0.15)"/>
+                  <path d="M0 20 L14 18 L28 17 L42 17.5 L56 15 L70 12 L84 10 L98 9 L112 8 L126 7 L140 6" fill="none" stroke="#00E5A0" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <!-- KPI grid -->
+              <div style="margin:6px 10px 0;display:grid;grid-template-columns:1fr 1fr;gap:5px">
+                <div style="background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-radius:9px;padding:7px">
+                  <div class="num" style="font-size:20px;color:#fff">73</div>
+                  <div style="font-size:7.5px;color:rgba(255,255,255,0.5)">Subscrições</div>
+                </div>
+                <div style="background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-radius:9px;padding:7px">
+                  <div class="num" style="font-size:20px;color:#fff">8</div>
+                  <div style="font-size:7.5px;color:rgba(255,255,255,0.5)">Churn (30d)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="opt-label">Top nav adaptado</div>
+          <div class="opt-sub">Mantém estrutura web</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

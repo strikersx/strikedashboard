@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design completo — Striker's House</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #0a0a0f;
+    color: #fff;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .num { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; letter-spacing: -0.01em; line-height: 0.9; }
+  .head { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 800; margin: 0 0 6px; color: #fff; letter-spacing: -0.01em; }
+  h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; margin: 0 0 4px; color: #fff; letter-spacing: 0.03em; text-transform: uppercase; }
+  .subtitle { font-size: 13px; color: rgba(255,255,255,0.5); margin: 0 0 28px; }
+
+  .page { max-width: 960px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  /* Section */
+  .section { margin-bottom: 40px; }
+  .section-label { font-size: 10px; font-weight: 700; color: #00E5A0; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
+
+  /* Token grid */
+  .token-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .token { border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06); }
+  .token-swatch { height: 36px; }
+  .token-body { padding: 7px 8px; background: #0F0F14; }
+  .token-name { font-size: 9px; color: rgba(255,255,255,0.5); font-weight: 600; }
+  .token-val { font-size: 10px; color: #fff; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+
+  /* Phone mockup */
+  .phones-row { display: flex; gap: 20px; flex-wrap: wrap; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .phone-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.6); }
+  .phone {
+    width: 220px;
+    background: #07070a;
+    border-radius: 30px;
+    overflow: hidden;
+    border: 1.5px solid rgba(255,255,255,0.12);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    position: relative;
+  }
+  .phone-screen { height: 420px; overflow: hidden; position: relative; }
+
+  /* App shell */
+  .app-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 14px 10px;
+    background: linear-gradient(180deg, #07070a 70%, rgba(7,7,10,0) 100%);
+    position: relative; z-index: 5;
+  }
+  .app-logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(140deg, #00E5A0, #00E5A0cc 60%, #00E5A088);
+    display: grid; place-items: center; flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(0,229,160,0.35);
+    font-size: 16px;
+  }
+  .app-live {
+    margin: 0 12px 8px;
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 8px;
+    border-radius: 10px;
+    background: #0F0F14;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #00E5A0; }
+
+  /* Hero card */
+  .hero-card {
+    margin: 0 12px;
+    background: linear-gradient(135deg, #0F0F14 0%, #12121A 100%);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px; padding: 14px;
+    position: relative; overflow: hidden;
+  }
+  .hero-glow {
+    position: absolute; right: -16px; top: -16px;
+    width: 110px; height: 110px;
+    background: radial-gradient(circle, rgba(0,229,160,0.2) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  /* KPI grid */
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 0 12px; margin-top: 8px; }
+  .kpi-card {
+    background: #0F0F14; border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 13px; padding: 10px 10px 12px;
+    position: relative; overflow: hidden;
+    min-height: 100px;
+  }
+  .kpi-glow {
+    position: absolute; top: -24px; right: -24px;
+    width: 64px; height: 64px; border-radius: 50%;
+    opacity: 0.07; filter: blur(6px);
+  }
+  .kpi-icon-box {
+    width: 24px; height: 24px; border-radius: 6px;
+    display: grid; place-items: center; margin-bottom: 8px;
+  }
+
+  /* Trend chip */
+  .chip {
+    display: inline-flex; align-items: center; gap: 2px;
+    padding: 2px 6px 2px 4px; border-radius: 5px;
+    font-size: 9px; font-weight: 700; font-family: 'Inter', sans-serif;
+  }
+  .chip-up { background: rgba(166,226,46,0.12); color: #A6E22E; }
+  .chip-down { background: rgba(255,61,46,0.12); color: #FF6B5E; }
+
+  /* Action row */
+  .action-row {
+    background: #0F0F14; border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px; padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+    position: relative; overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .action-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .action-count {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    display: grid; place-items: center;
+  }
+  .action-cta {
+    flex-shrink: 0; padding: 6px 9px; border-radius: 7px;
+    border: none; font-size: 9.5px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: #0a0a0a; cursor: pointer; font-family: 'Inter', sans-serif;
+  }
+
+  /* Bottom tab bar */
+  .tab-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(7,7,10,0.95);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 7px 2px 16px;
+    display: flex;
+    z-index: 10;
+  }
+  .tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 4px 0; cursor: pointer;
+  }
+  .tab-icon { font-size: 16px; line-height: 1; }
+  .tab-label { font-size: 8px; font-weight: 600; letter-spacing: 0.02em; }
+  .tab-active-bar {
+    position: absolute; top: -7px; left: 50%; transform: translateX(-50%);
+    width: 22px; height: 2.5px; border-radius: 2px; background: #00E5A0;
+  }
+
+  /* Divider */
+  hr { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 32px 0; }
+
+  /* Change list */
+  .changes { display: flex; flex-direction: column; gap: 10px; }
+  .change-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: #0F0F14; border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px; padding: 12px 14px;
+  }
+  .change-tag {
+    flex-shrink: 0; padding: 3px 8px; border-radius: 5px;
+    font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #0a0a0a; min-width: 60px; text-align: center; margin-top: 1px;
+  }
+  .tag-new { background: #00E5A0; }
+  .tag-update { background: #3D7DFF; }
+  .change-body { flex: 1; }
+  .change-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 3px; }
+  .change-desc { font-size: 11px; color: rgba(255,255,255,0.5); line-height: 1.4; }
+
+  /* Tabs structure */
+  .tabs-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .tab-card {
+    background: #0F0F14; border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px; padding: 12px 10px; text-align: center;
+  }
+  .tab-card-icon { font-size: 22px; margin-bottom: 6px; }
+  .tab-card-name { font-size: 11px; font-weight: 700; color: #fff; }
+  .tab-card-route { font-size: 9px; color: rgba(255,255,255,0.4); margin-top: 3px; font-family: 'JetBrains Mono', monospace; }
+  .tab-card-sub { font-size: 9px; color: rgba(255,255,255,0.5); margin-top: 4px; line-height: 1.3; }
+
+  /* Font preview */
+  .font-demo { background: #0F0F14; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; margin-bottom: 8px; }
+  .font-tag { font-size: 9px; color: rgba(255,255,255,0.4); font-family: 'JetBrains Mono', monospace; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Design: Fidelidade Total ao Protótipo</h1>
+  <p class="subtitle">Proposta de implementação — Next.js → Identical ao StrikeDashboard/</p>
+
+  <!-- FONTS -->
+  <div class="section">
+    <div class="section-label">1 · Tipografia</div>
+    <div class="font-demo">
+      <div class="font-tag">.num — Barlow Condensed 800 · números e valores</div>
+      <div class="num" style="font-size: 48px; color: #fff;">€4.136 &nbsp; 73 &nbsp; 22%</div>
+    </div>
+    <div class="font-demo">
+      <div class="font-tag">.head — Barlow Condensed 700 · títulos e labels</div>
+      <div class="head" style="font-size: 18px; color: #fff;">INDICADORES &nbsp; RECEITA YTD &nbsp; ACÇÕES RECOMENDADAS</div>
+    </div>
+    <div class="font-demo">
+      <div class="font-tag">.mono — JetBrains Mono · timestamps e dados técnicos</div>
+      <div class="mono" style="font-size: 13px; color: rgba(255,255,255,0.7);">última act. 13:57:37 &nbsp; · &nbsp; 26.04.2026</div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- DESIGN TOKENS -->
+  <div class="section">
+    <div class="section-label">2 · Design Tokens</div>
+    <div class="token-grid">
+      <div class="token"><div class="token-swatch" style="background:#07070a"></div><div class="token-body"><div class="token-name">ZERO_BG</div><div class="token-val">#07070a</div></div></div>
+      <div class="token"><div class="token-swatch" style="background:#0F0F14"></div><div class="token-body"><div class="token-name">SURFACE</div><div class="token-val">#0F0F14</div></div></div>
+      <div class="token"><div class="token-swatch" style="background:#15151C"></div><div class="token-body"><div class="token-name">SURFACE_2</div><div class="token-val">#15151C</div></div></div>
+      <div class="token"><div class="token-swatch" style="background:#00E5A0"></div><div class="token-body"><div class="token-name">electric</div><div class="token-val">#00E5A0</div></div></div>
+      <div class="token"><div class="token-swatch" style="background:#FF3D2E"></div><div class="token-body"><div class="token-name">coral</div><div class="token-val">#FF3D2E</div></div></div>
+      <div class="token"><div class="token-swatch" style="background:#FFB627"></div><div class="token-body"><div class="token-name">amber</div><div class="token-val">#FFB627</div></div></div>
+      <div class="token"><div class="token-swatch" style="background:#A6E22E"></div><div class="token-body"><div class="token-name">lime</div><div class="token-val">#A6E22E</div></div></div>
+      <div class="token"><div class="token-swatch" style="background:#FF2E88"></div><div class="token-body"><div class="token-name">magenta</div><div class="token-val">#FF2E88</div></div></div>
+      <div class="token"><div class="token-swatch" style="background:#3D7DFF"></div><div class="token-body"><div class="token-name">blue</div><div class="token-val">#3D7DFF</div></div></div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- NAVIGATION STRUCTURE -->
+  <div class="section">
+    <div class="section-label">3 · Estrutura de Navegação</div>
+    <p style="font-size:12px;color:rgba(255,255,255,0.5);margin:0 0 14px">5 tabs no bottom bar · rotas Next.js mantidas · "Mais" agrega páginas secundárias</p>
+    <div class="tabs-grid">
+      <div class="tab-card">
+        <div class="tab-card-icon">🏠</div>
+        <div class="tab-card-name">Início</div>
+        <div class="tab-card-route">/dashboard</div>
+        <div class="tab-card-sub">Hero + KPIs + Actions</div>
+      </div>
+      <div class="tab-card">
+        <div class="tab-card-icon">⬇</div>
+        <div class="tab-card-name">Funil</div>
+        <div class="tab-card-route">/dashboard/funnel</div>
+        <div class="tab-card-sub">Conversão + insights</div>
+      </div>
+      <div class="tab-card">
+        <div class="tab-card-icon">👥</div>
+        <div class="tab-card-name">Subs</div>
+        <div class="tab-card-route">/dashboard/subscribers</div>
+        <div class="tab-card-sub">Lista + planos</div>
+      </div>
+      <div class="tab-card">
+        <div class="tab-card-icon">🔥</div>
+        <div class="tab-card-name">Leads</div>
+        <div class="tab-card-route">/dashboard/trials</div>
+        <div class="tab-card-sub">Trials quentes + no-show</div>
+      </div>
+      <div class="tab-card" style="border-color:rgba(0,229,160,0.2)">
+        <div class="tab-card-icon">⋯</div>
+        <div class="tab-card-name">Mais</div>
+        <div class="tab-card-route">/dashboard/more</div>
+        <div class="tab-card-sub">Revenue, PTs, Churn, Falhas, Classes</div>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- SCREENS MOCKUP -->
+  <div class="section">
+    <div class="section-label">4 · Screens</div>
+    <div class="phones-row">
+
+      <!-- HOME -->
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="app-header">
+              <div class="app-logo">🏆</div>
+              <div style="flex:1">
+                <div class="num" style="font-size:13px;color:#fff">STRIKER'S HOUSE</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:1px">Carcavelos <span style="color:#00E5A0;font-weight:700">· Admin ▾</span></div>
+              </div>
+              <div style="width:30px;height:30px;border-radius:8px;background:#0F0F14;border:1px solid rgba(255,255,255,0.06);display:grid;place-items:center;font-size:13px">↺</div>
+            </div>
+            <div class="app-live">
+              <div class="live-dot"></div>
+              <span style="font-size:9px;color:rgba(255,255,255,0.72);font-weight:600">LIVE</span>
+              <span style="flex:1;font-size:9px;color:rgba(255,255,255,0.5);text-align:right" class="mono">13:57:37</span>
+            </div>
+            <!-- Hero -->
+            <div class="hero-card">
+              <div class="hero-glow"></div>
+              <div style="position:relative">
+                <div class="head" style="font-size:9px;color:rgba(255,255,255,0.72);margin-bottom:6px">Receita YTD</div>
+                <div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:7px">
+                  <div class="num" style="font-size:40px;color:#fff">€4136</div>
+                  <span class="chip chip-up" style="margin-bottom:4px">▲ +12%</span>
+                </div>
+                <svg viewBox="0 0 180 40" style="width:100%;height:40px;display:block">
+                  <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00E5A0" stop-opacity="0.3"/><stop offset="100%" stop-color="#00E5A0" stop-opacity="0"/></linearGradient></defs>
+                  <path d="M0 34 L20 31 L40 29 L60 30 L80 26 L100 21 L120 17 L140 14 L160 12 L180 9 L180 40 L0 40 Z" fill="url(#g1)"/>
+                  <path d="M0 34 L20 31 L40 29 L60 30 L80 26 L100 21 L120 17 L140 14 L160 12 L180 9" fill="none" stroke="#00E5A0" stroke-width="1.8" stroke-linecap="round"/>
+                  <circle cx="180" cy="9" r="3" fill="#00E5A0" stroke="#0F0F14" stroke-width="1.5"/>
+                </svg>
+                <div style="display:flex;justify-content:space-between;margin-top:3px">
+                  <span style="font-size:8px;color:rgba(255,255,255,0.4)">Jan 26</span>
+                  <span style="font-size:8px;color:rgba(255,255,255,0.4)">Média €1034/mês</span>
+                  <span style="font-size:8px;color:rgba(255,255,255,0.4)">Hoje</span>
+                </div>
+              </div>
+            </div>
+            <!-- KPI grid -->
+            <div class="kpi-grid">
+              <div class="kpi-card">
+                <div class="kpi-glow" style="background:#3D7DFF"></div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div class="kpi-icon-box" style="background:rgba(61,125,255,0.15)"><span style="font-size:10px">👥</span></div>
+                  <span class="chip chip-up">▲ +4</span>
+                </div>
+                <div class="num" style="font-size:26px;color:#fff;margin-top:6px">73</div>
+                <div style="font-size:8px;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.04em;margin-top:3px">Subscrições</div>
+                <div style="font-size:8px;color:rgba(255,255,255,0.4);margin-top:1px">63 grupo · 10 PT</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-glow" style="background:#FFB627"></div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div class="kpi-icon-box" style="background:rgba(255,182,39,0.15)"><span style="font-size:10px">📉</span></div>
+                  <span class="chip chip-down">▼ +2</span>
+                </div>
+                <div class="num" style="font-size:26px;color:#fff;margin-top:6px">8</div>
+                <div style="font-size:8px;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.04em;margin-top:3px">Churn (30d)</div>
+                <div style="font-size:8px;color:rgba(255,255,255,0.4);margin-top:1px">11% — sem aulas</div>
+              </div>
+            </div>
+            <!-- Actions -->
+            <div style="padding:8px 12px 0">
+              <div class="head" style="font-size:13px;color:#fff;margin-bottom:6px">Acções recomendadas</div>
+              <div class="action-row">
+                <div class="action-stripe" style="background:#FF3D2E"></div>
+                <div class="action-count" style="background:rgba(255,61,46,0.12)">
+                  <span class="num" style="font-size:16px;color:#FF3D2E">22</span>
+                </div>
+                <div style="flex:1">
+                  <div style="font-size:11px;font-weight:600;color:#fff">pagamentos falhados</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.5)">Recuperar receita</div>
+                </div>
+                <button class="action-cta" style="background:#FF3D2E">Contactar</button>
+              </div>
+              <div class="action-row">
+                <div class="action-stripe" style="background:#FFB627"></div>
+                <div class="action-count" style="background:rgba(255,182,39,0.12)">
+                  <span class="num" style="font-size:16px;color:#FFB627">8</span>
+                </div>
+                <div style="flex:1">
+                  <div style="font-size:11px;font-weight:600;color:#fff">em risco de churn</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.5)">0 aulas · 30 dias</div>
+                </div>
+                <button class="action-cta" style="background:#FFB627">Rever</button>
+              </div>
+            </div>
+            <!-- Tab bar -->
+            <div class="tab-bar">
+              <div class="tab" style="position:relative">
+                <div class="tab-active-bar"></div>
+                <div class="tab-icon">🏠</div>
+                <div class="tab-label" style="color:#00E5A0">Início</div>
+              </div>
+              <div class="tab">
+                <div class="tab-icon">⬇</div>
+                <div class="tab-label" style="color:rgba(255,255,255,0.5)">Funil</div>
+              </div>
+              <div class="tab">
+                <div class="tab-icon">👥</div>
+                <div class="tab-label" style="color:rgba(255,255,255,0.5)">Subs</div>
+              </div>
+              <div class="tab">
+                <div class="tab-icon">🔥</div>
+                <div class="tab-label" style="color:rgba(255,255,255,0.5)">Leads</div>
+              </div>
+              <div class="tab">
+                <div class="tab-icon" style="font-size:18px;font-weight:700;color:rgba(255,255,255,0.5)">•••</div>
+                <div class="tab-label" style="color:rgba(255,255,255,0.5)">Mais</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-label">Início</div>
+      </div>
+
+      <!-- LEADS -->
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="app-header">
+              <div class="app-logo">🏆</div>
+              <div style="flex:1">
+                <div class="num" style="font-size:13px;color:#fff">STRIKER'S HOUSE</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:1px">Carcavelos <span style="color:#00E5A0;font-weight:700">· Admin ▾</span></div>
+              </div>
+            </div>
+            <div class="app-live">
+              <div class="live-dot"></div>
+              <span style="font-size:9px;color:rgba(255,255,255,0.72);font-weight:600">LIVE</span>
+            </div>
+            <!-- Split stats -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px">
+              <div style="padding:12px;border-radius:12px;background:rgba(255,46,136,0.08);border:1px solid #FF2E88">
+                <div class="head" style="font-size:8px;color:#FF2E88;margin-bottom:5px">FORAM À AULA</div>
+                <div class="num" style="font-size:30px;color:#fff">11</div>
+                <div style="font-size:8px;color:rgba(255,255,255,0.5);margin-top:3px;line-height:1.3">Lead quente · 24-48h</div>
+              </div>
+              <div style="padding:12px;border-radius:12px;background:#0F0F14;border:1px solid rgba(255,255,255,0.06)">
+                <div class="head" style="font-size:8px;color:#FFB627;margin-bottom:5px">FALTARAM</div>
+                <div class="num" style="font-size:30px;color:#fff">35</div>
+                <div style="font-size:8px;color:rgba(255,255,255,0.5);margin-top:3px;line-height:1.3">No-show · reagendar</div>
+              </div>
+            </div>
+            <!-- Trial rows -->
+            <div style="padding:10px 12px 0">
+              <div class="head" style="font-size:13px;color:#fff;margin-bottom:7px">Foram à aula <span style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:600">11</span></div>
+              <!-- Row -->
+              <div style="background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-left:3px solid #FF2E88;border-radius:11px;padding:9px 11px;display:flex;align-items:center;gap:9px;margin-bottom:5px">
+                <div style="width:30px;height:30px;border-radius:8px;background:rgba(255,46,136,0.14);display:grid;place-items:center;font-size:11px;font-weight:700;color:#FF2E88">ES</div>
+                <div style="flex:1">
+                  <div style="font-size:11px;font-weight:600;color:#fff">Eduardo Souza</div>
+                  <div style="font-size:8.5px;color:rgba(255,255,255,0.5)">933 891 582 · 26 abr</div>
+                </div>
+                <span style="font-size:8px;font-weight:700;color:#FF2E88;background:rgba(255,46,136,0.14);padding:2px 6px;border-radius:4px">✓ FOI</span>
+              </div>
+              <div style="background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-left:3px solid #FF2E88;border-radius:11px;padding:9px 11px;display:flex;align-items:center;gap:9px;margin-bottom:5px">
+                <div style="width:30px;height:30px;border-radius:8px;background:rgba(255,46,136,0.14);display:grid;place-items:center;font-size:11px;font-weight:700;color:#FF2E88">PC</div>
+                <div style="flex:1">
+                  <div style="font-size:11px;font-weight:600;color:#fff">Pedro Cabrita</div>
+                  <div style="font-size:8.5px;color:rgba(255,255,255,0.5)">932 205 155 · 22 abr</div>
+                </div>
+                <span style="font-size:8px;font-weight:700;color:#FF2E88;background:rgba(255,46,136,0.14);padding:2px 6px;border-radius:4px">✓ FOI</span>
+              </div>
+            </div>
+            <!-- Tab bar -->
+            <div class="tab-bar">
+              <div class="tab"><div class="tab-icon">🏠</div><div class="tab-label" style="color:rgba(255,255,255,0.5)">Início</div></div>
+              <div class="tab"><div class="tab-icon">⬇</div><div class="tab-label" style="color:rgba(255,255,255,0.5)">Funil</div></div>
+              <div class="tab"><div class="tab-icon">👥</div><div class="tab-label" style="color:rgba(255,255,255,0.5)">Subs</div></div>
+              <div class="tab" style="position:relative">
+                <div class="tab-active-bar"></div>
+                <div class="tab-icon">🔥</div>
+                <div class="tab-label" style="color:#00E5A0">Leads</div>
+              </div>
+              <div class="tab"><div class="tab-icon" style="font-size:18px;font-weight:700;color:rgba(255,255,255,0.5)">•••</div><div class="tab-label" style="color:rgba(255,255,255,0.5)">Mais</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-label">Leads / Trials</div>
+      </div>
+
+      <!-- SUBS -->
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="app-header">
+              <div class="app-logo">🏆</div>
+              <div style="flex:1">
+                <div class="num" style="font-size:13px;color:#fff">STRIKER'S HOUSE</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.5)">Carcavelos <span style="color:#00E5A0;font-weight:700">· Admin ▾</span></div>
+              </div>
+            </div>
+            <!-- Summary cards -->
+            <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:8px;padding:0 12px">
+              <div style="background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px">
+                <div class="head" style="font-size:8px;color:rgba(255,255,255,0.72);margin-bottom:5px">SUBSCRITORES</div>
+                <div class="num" style="font-size:30px;color:#fff">73</div>
+                <div style="font-size:8px;color:rgba(255,255,255,0.4);margin-top:3px">activos · todos os planos</div>
+              </div>
+              <div style="background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px">
+                <div class="head" style="font-size:8px;color:rgba(255,255,255,0.72);margin-bottom:5px">MRR</div>
+                <div class="num" style="font-size:28px;color:#00E5A0">€5.4k</div>
+                <div style="font-size:8px;color:rgba(255,255,255,0.4);margin-top:3px">receita activa</div>
+              </div>
+            </div>
+            <!-- Filter chips -->
+            <div style="padding:8px 12px;display:flex;gap:5px">
+              <button style="padding:5px 10px;border-radius:999px;background:#00E5A0;color:#0a0a0a;font-size:9px;font-weight:700;border:none;font-family:'Inter',sans-serif">Todos <span style="opacity:0.7">9</span></button>
+              <button style="padding:5px 10px;border-radius:999px;background:#0F0F14;color:rgba(255,255,255,0.72);font-size:9px;font-weight:700;border:1px solid rgba(255,255,255,0.06);font-family:'Inter',sans-serif">Activos</button>
+              <button style="padding:5px 10px;border-radius:999px;background:#0F0F14;color:rgba(255,255,255,0.72);font-size:9px;font-weight:700;border:1px solid rgba(255,255,255,0.06);font-family:'Inter',sans-serif">Risco</button>
+              <button style="padding:5px 10px;border-radius:999px;background:#0F0F14;color:rgba(255,255,255,0.72);font-size:9px;font-weight:700;border:1px solid rgba(255,255,255,0.06);font-family:'Inter',sans-serif">Falhas</button>
+            </div>
+            <!-- Sub rows -->
+            <div style="padding:0 12px;display:flex;flex-direction:column;gap:5px">
+              <div style="background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:9px 10px;display:flex;align-items:center;gap:9px">
+                <div style="width:30px;height:30px;border-radius:8px;background:#1f1f28;border:1px solid rgba(255,255,255,0.06);display:grid;place-items:center;font-size:10px;font-weight:700">JP</div>
+                <div style="flex:1">
+                  <div style="font-size:11px;font-weight:600;color:#fff">João Pereira</div>
+                  <div style="font-size:8.5px;color:rgba(255,255,255,0.5)">Grupo · ilimitado · 6/12 aulas</div>
+                </div>
+                <span style="font-size:8.5px;font-weight:700;color:#00E5A0;background:rgba(0,229,160,0.12);padding:2px 7px;border-radius:5px;display:flex;align-items:center;gap:3px"><span style="width:4px;height:4px;border-radius:50%;background:#00E5A0;display:inline-block"></span>11d</span>
+              </div>
+              <div style="background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:9px 10px;display:flex;align-items:center;gap:9px">
+                <div style="width:30px;height:30px;border-radius:8px;background:#1f1f28;border:1px solid rgba(255,255,255,0.06);display:grid;place-items:center;font-size:10px;font-weight:700">TA</div>
+                <div style="flex:1">
+                  <div style="font-size:11px;font-weight:600;color:#fff">Tiago Almeida</div>
+                  <div style="font-size:8.5px;color:rgba(255,255,255,0.5)">PT · 4x/mês · 0/4 aulas</div>
+                </div>
+                <span style="font-size:8.5px;font-weight:700;color:#FFB627;background:rgba(255,182,39,0.12);padding:2px 7px;border-radius:5px;display:flex;align-items:center;gap:3px"><span style="width:4px;height:4px;border-radius:50%;background:#FFB627;display:inline-block"></span>risco</span>
+              </div>
+              <div style="background:#0F0F14;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:9px 10px;display:flex;align-items:center;gap:9px">
+                <div style="width:30px;height:30px;border-radius:8px;background:#1f1f28;border:1px solid rgba(255,255,255,0.06);display:grid;place-items:center;font-size:10px;font-weight:700">DF</div>
+                <div style="flex:1">
+                  <div style="font-size:11px;font-weight:600;color:#fff">Diogo Ferreira</div>
+                  <div style="font-size:8.5px;color:rgba(255,255,255,0.5)">Grupo · ilimitado · 7/12 aulas</div>
+                </div>
+                <span style="font-size:8.5px;font-weight:700;color:#FF6B5E;background:rgba(255,61,46,0.12);padding:2px 7px;border-radius:5px;display:flex;align-items:center;gap:3px"><span style="width:4px;height:4px;border-radius:50%;background:#FF6B5E;display:inline-block"></span>falha</span>
+              </div>
+            </div>
+            <!-- Tab bar -->
+            <div class="tab-bar">
+              <div class="tab"><div class="tab-icon">🏠</div><div class="tab-label" style="color:rgba(255,255,255,0.5)">Início</div></div>
+              <div class="tab"><div class="tab-icon">⬇</div><div class="tab-label" style="color:rgba(255,255,255,0.5)">Funil</div></div>
+              <div class="tab" style="position:relative">
+                <div class="tab-active-bar"></div>
+                <div class="tab-icon">👥</div>
+                <div class="tab-label" style="color:#00E5A0">Subs</div>
+              </div>
+              <div class="tab"><div class="tab-icon">🔥</div><div class="tab-label" style="color:rgba(255,255,255,0.5)">Leads</div></div>
+              <div class="tab"><div class="tab-icon" style="font-size:18px;font-weight:700;color:rgba(255,255,255,0.5)">•••</div><div class="tab-label" style="color:rgba(255,255,255,0.5)">Mais</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-label">Subscritores</div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- CHANGES -->
+  <div class="section">
+    <div class="section-label">5 · O que muda no código</div>
+    <div class="changes">
+      <div class="change-item">
+        <div class="change-tag tag-new">NOVO</div>
+        <div class="change-body">
+          <div class="change-title">Fontes: Barlow Condensed + JetBrains Mono</div>
+          <div class="change-desc">Adicionar ao <code>layout.tsx</code> via Google Fonts. Criar classes CSS <code>.num</code>, <code>.head</code>, <code>.mono</code> globais. Actualizar Tailwind config com as variáveis de fonte.</div>
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-tag tag-update">UPDATE</div>
+        <div class="change-body">
+          <div class="change-title">Design tokens exactos no tailwind.config.ts</div>
+          <div class="change-desc">Substituir cores genéricas (zinc-900, etc.) pelos tokens exactos do protótipo: <code>#07070a</code>, <code>#0F0F14</code>, <code>#15151C</code>, cores de acento exactas.</div>
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-tag tag-new">NOVO</div>
+        <div class="change-body">
+          <div class="change-title">Componente BottomTabBar</div>
+          <div class="change-desc">Novo componente com 5 tabs (Início, Funil, Subs, Leads, Mais). Barra activa no topo do tab activo. Sticky no fundo. Substitui o Nav actual no layout do dashboard.</div>
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-tag tag-update">UPDATE</div>
+        <div class="change-body">
+          <div class="change-title">AppHeader — header sticky com logo</div>
+          <div class="change-desc">Header compacto com logo verde, título STRIKER'S HOUSE, role pill clicável, botão refresh. Gradiente transparente em baixo.</div>
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-tag tag-update">UPDATE</div>
+        <div class="change-body">
+          <div class="change-title">Dashboard home — hero card + KPI cards + action rows</div>
+          <div class="change-desc">Hero card com sparkline SVG real (dados de receita). KPI cards com glow radial + ícone em box + TrendChip. Action rows com stripe lateral colorida + badge numérico + botão CTA colorido.</div>
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-tag tag-update">UPDATE</div>
+        <div class="change-body">
+          <div class="change-title">Subscribers — filter chips + sub rows com initials avatar</div>
+          <div class="change-desc">Filter chips pill-style (Todos/Activos/Risco/Falhas). Cada row com initials avatar, plano, StatusPill com dot colorido.</div>
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-tag tag-update">UPDATE</div>
+        <div class="change-body">
+          <div class="change-title">Trials/Leads — split stats + trial rows com border lateral</div>
+          <div class="change-desc">Dois cards no topo (Foram/Faltaram). Lista com border-left colorida, initials avatar com fundo colorido, badge de estado.</div>
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-tag tag-new">NOVO</div>
+        <div class="change-body">
+          <div class="change-title">Página "Mais" — menu de secções secundárias</div>
+          <div class="change-desc">Nova rota <code>/dashboard/more</code>. Lista de links para Revenue, PTs, Churn, Falhas, Classes. Secção de conta com logout.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

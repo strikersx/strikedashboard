@@ -51,7 +51,9 @@ export default function ClassesPage() {
     setLoading(true);
     setError(null);
     try {
-      const startDate = fmtDate(new Date());
+      // Start from beginning of month to include past visitors
+      const now = new Date();
+      const startDate = fmtDate(new Date(now.getFullYear(), now.getMonth(), 1));
       const end = new Date();
       end.setDate(end.getDate() + 30);
       const endDate = fmtDate(end);
