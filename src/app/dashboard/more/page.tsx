@@ -19,6 +19,7 @@ const SECTIONS: Section[] = [
   { id: "churn",    label: "Churn",                sub: "Membros em risco de cancelamento",   icon: "📉", href: "/dashboard/churn" },
   { id: "failed",   label: "Pagamentos falhados",  sub: "Cartões recusados ou expirados",     icon: "💳", href: "/dashboard/failed" },
   { id: "classes",  label: "Visitantes",           sub: "USC, ClassPass, Bruce App",          icon: "✨", href: "/dashboard/classes" },
+  { id: "leads",    label: "Leads",                sub: "Interessados que se cadastraram",    icon: "🎯", href: "/dashboard/leads" },
 ];
 
 export default function MorePage() {
