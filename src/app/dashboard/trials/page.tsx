@@ -3,11 +3,10 @@
 import { useEffect, useCallback, useState } from "react";
 import { useYogoFetch } from "@/hooks/use-yogo";
 import { useDashboard } from "@/app/dashboard/layout";
-import { MiniStat } from "@/components/mini-stat";
-import { Pill } from "@/components/pill";
-import { LoaderIcon, CheckIcon, XIcon } from "@/components/icons";
-import { fmtDate, getDashboardRange, isToday, isThisWeek } from "@/lib/utils";
+import { LoaderIcon } from "@/components/icons";
+import { fmtDate, getDashboardRange } from "@/lib/utils";
 import { TRIAL_CLASS_TYPE_ID, TRIAL_CLASS_PASS_ID } from "@/lib/constants";
+import { TrialRow } from "@/components/trial-row";
 
 interface Customer {
   id: number;
@@ -36,6 +35,7 @@ export default function TrialsPage() {
   const [error, setError] = useState<string | null>(null);
   const [students, setStudents] = useState<Customer[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [tab, setTab] = useState<"hot" | "cold">("hot");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,106 +84,105 @@ export default function TrialsPage() {
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
-  const todaySignups = classes.filter((c) => isToday(c.date)).reduce((s, c) => s + (c.signup_count || 0), 0);
-  const weekSignups = classes.filter((c) => isThisWeek(c.date)).reduce((s, c) => s + (c.signup_count || 0), 0);
-
   if (loading) return <div className="py-20 flex justify-center"><LoaderIcon /></div>;
   if (error) return <div className="py-20 text-center text-tone-coral text-sm">Erro: {error}</div>;
 
-  // Sort students by createdAt descending (most recent first)
-  const sorted = [...students].sort((a, b) => {
-    const da = a.createdAt || "";
-    const db = b.createdAt || "";
-    return db.localeCompare(da);
-  });
-
-  // Split into this week vs older
-  const thisWeekStudents = sorted.filter((c) => {
-    // createdAt from Yogo is like "29 de abril de 2026 às 10:05"
-    // We can't reliably parse PT dates, so we use the id as proxy (higher id = more recent)
-    // But actually let's check if we have a parseable date
-    return true; // we'll highlight based on section instead
-  });
-
-  // For the week highlight, use classes data since we have proper dates there
-  const weekClasses = classes.filter((c) => isThisWeek(c.date));
-  const weekClassSignups = weekClasses.reduce((s, c) => s + (c.signup_count || 0), 0);
-
-  const StudentCard = ({ c }: { c: Customer }) => (
-    <div className={`bg-surface rounded-lg p-3 flex items-center justify-between gap-3 border-l-4 ${c.attended ? "border-accent" : "border-border-subtle"}`}>
-      <div className="min-w-0">
-        <div className="text-sm font-medium truncate">{c.first_name} {c.last_name}</div>
-        <div className="text-xs text-muted mt-0.5 flex flex-wrap gap-x-3">
-          {c.email && <span>{c.email}</span>}
-          {c.phone && <a href={`tel:${c.phone}`} className="text-tone-blue hover:underline">{c.phone}</a>}
-        </div>
-        {c.createdAt && <div className="text-xs text-muted mt-0.5">{c.createdAt}</div>}
-      </div>
-      {c.attended ? <Pill color="emerald"><CheckIcon /> foi à aula</Pill> : <Pill color="amber"><XIcon /> agendado</Pill>}
-    </div>
-  );
+  const went = students.filter((s) => s.attended);
+  const noshow = students.filter((s) => !s.attended);
+  const list = tab === "hot" ? went : noshow;
 
   return (
-    <div className="space-y-6">
-      <h1 className="head text-xl font-bold">Aulas Experimentais</h1>
-
-      <div className="grid grid-cols-3 gap-3">
-        <MiniStat label="Inscritos hoje" value={todaySignups} color="emerald" />
-        <MiniStat label="Esta semana" value={weekSignups} color="cyan" />
-        <MiniStat label="Total alunos trial" value={students.length} color="white" />
-      </div>
-
-      {/* This week highlight */}
-      {weekClasses.length > 0 && (
-        <div className="bg-accent/8 border border-accent/20 rounded-xl p-5">
-          <h2 className="head text-sm font-semibold text-accent uppercase tracking-wide mb-3">
-            Esta semana · <span className="num">{weekClassSignups}</span> inscrição{weekClassSignups !== 1 ? "ões" : "ão"}
-          </h2>
-          <div className="space-y-2">
-            {weekClasses.sort((a, b) => b.date.localeCompare(a.date) || (b.start_time || "").localeCompare(a.start_time || "")).map((c) => (
-              <div key={c.id} className="bg-surface rounded-lg p-3 border-l-4 border-accent">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm font-medium">{c.class_type?.name || "Trial"}</span>
-                    <span className="text-accent text-sm font-bold ml-2">+{c.signup_count}</span>
-                  </div>
-                  <span className="text-xs text-muted">{c.date} · {(c.start_time || "").slice(0, 5)}</span>
-                </div>
-                {c.teachers?.[0] && <div className="text-xs text-muted mt-1">{c.teachers[0].first_name} {c.teachers[0].last_name}</div>}
-              </div>
-            ))}
+    <div style={{ paddingBottom: 32 }}>
+      {/* Split stat cards */}
+      <div style={{ padding: "4px 18px 14px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <button
+          onClick={() => setTab("hot")}
+          style={{
+            padding: 14, borderRadius: 14, cursor: "pointer", textAlign: "left",
+            background: tab === "hot" ? "rgba(255,46,136,0.08)" : "#0F0F14",
+            border: `1px solid ${tab === "hot" ? "#FF2E88" : "rgba(255,255,255,0.06)"}`,
+            color: "#fff", fontFamily: "inherit",
+          }}
+          className="tap"
+        >
+          <div className="head" style={{ fontSize: 10, color: "#FF2E88", marginBottom: 6 }}>FORAM À AULA</div>
+          <div className="num" style={{ fontSize: 38, color: "#fff" }}>{went.length}</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 4, lineHeight: 1.3 }}>
+            Lead quente — fechar venda 24-48h
           </div>
-        </div>
-      )}
-
-      {/* All students — most recent first */}
-      <div>
-        <h2 className="head text-sm font-semibold text-muted-strong uppercase tracking-wide mb-3">Todos os alunos trial (<span className="num">{students.length}</span>)</h2>
-        <div className="space-y-1.5">
-          {sorted.map((c) => <StudentCard key={c.id} c={c} />)}
-          {students.length === 0 && <div className="text-muted text-sm py-8 text-center">Nenhum aluno trial no período</div>}
-        </div>
+        </button>
+        <button
+          onClick={() => setTab("cold")}
+          style={{
+            padding: 14, borderRadius: 14, cursor: "pointer", textAlign: "left",
+            background: tab === "cold" ? "rgba(255,182,39,0.08)" : "#0F0F14",
+            border: `1px solid ${tab === "cold" ? "#FFB627" : "rgba(255,255,255,0.06)"}`,
+            color: "#fff", fontFamily: "inherit",
+          }}
+          className="tap"
+        >
+          <div className="head" style={{ fontSize: 10, color: "#FFB627", marginBottom: 6 }}>FALTARAM</div>
+          <div className="num" style={{ fontSize: 38, color: "#fff" }}>{noshow.length}</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 4, lineHeight: 1.3 }}>
+            No-show — confirmar e reagendar
+          </div>
+        </button>
       </div>
 
-      {/* All classes with signups — most recent first */}
+      {/* List */}
+      <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "baseline", gap: 8 }}>
+        <h3 className="head" style={{ margin: 0, fontSize: 18, color: "#fff" }}>
+          {tab === "hot" ? "Foram à aula" : "Faltaram ou agendado"}
+        </h3>
+        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{list.length}</span>
+      </div>
+      <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {list.map((t) => (
+          <TrialRow
+            key={t.id}
+            name={`${t.first_name ?? ""} ${t.last_name ?? ""}`.trim() || "Sem nome"}
+            phone={t.phone}
+            registeredAt={t.createdAt ? new Date(t.createdAt).toLocaleDateString("pt-PT") : undefined}
+            attended={t.attended ?? false}
+          />
+        ))}
+        {list.length === 0 && (
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", padding: "8px 0" }}>
+            Nenhum registo nesta categoria.
+          </div>
+        )}
+      </div>
+
+      {/* Trial classes section */}
       {classes.length > 0 && (
-        <div>
-          <h2 className="head text-sm font-semibold text-muted-strong uppercase tracking-wide mb-3">Todas as aulas com inscrições</h2>
-          <div className="space-y-2">
-            {[...classes].sort((a, b) => b.date.localeCompare(a.date) || (b.start_time || "").localeCompare(a.start_time || "")).map((c) => (
-              <div key={c.id} className={`bg-surface rounded-lg p-3 border-l-4 ${isThisWeek(c.date) ? "border-accent" : "border-border-subtle"}`}>
-                <div className="flex items-center justify-between">
+        <>
+          <div style={{ padding: "18px 18px 10px" }}>
+            <h3 className="head" style={{ margin: 0, fontSize: 18, color: "#fff" }}>
+              Aulas Experimentais <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{classes.length}</span>
+            </h3>
+          </div>
+          <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 6 }}>
+            {classes.map((c) => (
+              <div
+                key={c.id}
+                style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "10px 12px" }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <span className="text-sm font-medium">{c.class_type?.name || "Trial"}</span>
-                    <span className="text-accent text-sm font-bold ml-2">+{c.signup_count}</span>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>
+                      {c.date} · {c.start_time?.slice(0, 5)}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
+                      {c.class_type?.name ?? "Experimental"}
+                      {c.teachers?.[0] && ` · ${c.teachers[0].first_name} ${c.teachers[0].last_name}`}
+                    </div>
                   </div>
-                  <span className="text-xs text-muted">{c.date} · {(c.start_time || "").slice(0, 5)}</span>
+                  <span className="num" style={{ fontSize: 22, color: "#00E5A0" }}>{c.signup_count}</span>
                 </div>
-                {c.teachers?.[0] && <div className="text-xs text-muted mt-1">{c.teachers[0].first_name} {c.teachers[0].last_name}</div>}
               </div>
             ))}
           </div>
-        </div>
+        </>
       )}
     </div>
   );
