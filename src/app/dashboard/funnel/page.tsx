@@ -39,42 +39,42 @@ export default function FunnelPage() {
 
   const max = Math.max(leads, trialNoConv, subs, 1);
   const stages = [
-    { label: "Leads frios", desc: "Cadastraram-se mas nunca compraram", value: leads, color: "bg-purple-600", text: "text-purple-400" },
-    { label: "Trial sem conversão", desc: `${attended} foram à aula · ${noshow} não foram`, value: trialNoConv, color: "bg-pink-600", text: "text-pink-400" },
-    { label: "Subscritores activos", desc: "Convertidos — receita recorrente", value: subs, color: "bg-emerald-600", text: "text-emerald-400" },
+    { label: "Leads frios", desc: "Cadastraram-se mas nunca compraram", value: leads, color: "bg-tone-magenta", text: "text-tone-magenta" },
+    { label: "Trial sem conversão", desc: `${attended} foram à aula · ${noshow} não foram`, value: trialNoConv, color: "bg-tone-magenta", text: "text-tone-magenta" },
+    { label: "Subscritores activos", desc: "Convertidos — receita recorrente", value: subs, color: "bg-accent", text: "text-accent" },
   ];
 
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-2">Funil de conversão</h2>
-      <p className="text-zinc-500 text-sm mb-6">Pipeline da Striker&apos;s House. Cada etapa requer uma acção diferente.</p>
+      <h2 className="head text-lg font-semibold mb-2">Funil de conversão</h2>
+      <p className="text-muted text-sm mb-6">Pipeline da Striker&apos;s House. Cada etapa requer uma acção diferente.</p>
       <div className="space-y-3">
         {stages.map((s, i) => {
           const pct = (s.value / max) * 100;
           const fromPrev = i > 0 ? Math.round((s.value / Math.max(stages[i - 1].value, 1)) * 100) : null;
           return (
-            <div key={i} className="bg-black/40 rounded-lg p-4">
+            <div key={i} className="bg-surface rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
-                <div><div className="font-semibold">{s.label}</div><div className="text-xs text-zinc-500">{s.desc}</div></div>
-                <div className="text-right"><div className={`text-2xl font-bold ${s.text}`}>{s.value}</div>{fromPrev !== null && <div className="text-xs text-zinc-500">{fromPrev}% da etapa anterior</div>}</div>
+                <div><div className="font-semibold">{s.label}</div><div className="text-xs text-muted">{s.desc}</div></div>
+                <div className="text-right"><div className={`num text-2xl font-bold ${s.text}`}>{s.value}</div>{fromPrev !== null && <div className="text-xs text-muted">{fromPrev}% da etapa anterior</div>}</div>
               </div>
-              <div className="h-2 bg-zinc-800 rounded overflow-hidden"><div className={`h-full ${s.color}`} style={{ width: pct + "%" }} /></div>
+              <div className="h-2 bg-border-subtle rounded overflow-hidden"><div className={`h-full ${s.color}`} style={{ width: pct + "%" }} /></div>
             </div>
           );
         })}
       </div>
       <div className="mt-6 grid md:grid-cols-3 gap-3">
-        <div className="bg-purple-950/30 border border-purple-900/50 rounded-lg p-4">
-          <div className="text-purple-400 text-sm font-semibold mb-1">Acção: Leads frios</div>
-          <div className="text-xs text-zinc-400">Convidar para aula experimental gratuita.</div>
+        <div className="bg-tone-magenta/8 border border-tone-magenta/20 rounded-lg p-4">
+          <div className="text-tone-magenta text-sm font-semibold mb-1">Acção: Leads frios</div>
+          <div className="text-xs text-muted-strong">Convidar para aula experimental gratuita.</div>
         </div>
-        <div className="bg-pink-950/30 border border-pink-900/50 rounded-lg p-4">
-          <div className="text-pink-400 text-sm font-semibold mb-1">Acção: Trial s/ conv.</div>
-          <div className="text-xs text-zinc-400">Quem foi à aula — fechar agora. Quem faltou — reagendar.</div>
+        <div className="bg-tone-magenta/8 border border-tone-magenta/20 rounded-lg p-4">
+          <div className="text-tone-magenta text-sm font-semibold mb-1">Acção: Trial s/ conv.</div>
+          <div className="text-xs text-muted-strong">Quem foi à aula — fechar agora. Quem faltou — reagendar.</div>
         </div>
-        <div className="bg-emerald-950/30 border border-emerald-900/50 rounded-lg p-4">
-          <div className="text-emerald-400 text-sm font-semibold mb-1">Acção: Subscritores</div>
-          <div className="text-xs text-zinc-400">Manter qualidade da aula. Reduzir churn.</div>
+        <div className="bg-accent/8 border border-accent/20 rounded-lg p-4">
+          <div className="text-accent text-sm font-semibold mb-1">Acção: Subscritores</div>
+          <div className="text-xs text-muted-strong">Manter qualidade da aula. Reduzir churn.</div>
         </div>
       </div>
     </div>

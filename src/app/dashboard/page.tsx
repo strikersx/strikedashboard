@@ -341,7 +341,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <LoaderIcon className="w-8 h-8 animate-spin text-zinc-500" />
+        <LoaderIcon className="w-8 h-8 animate-spin text-muted" />
       </div>
     );
   }
@@ -349,8 +349,8 @@ export default function DashboardPage() {
   if (error) {
     return (
       <div className="text-center py-20">
-        <div className="text-red-500 mb-2">Erro ao carregar dados</div>
-        <div className="text-zinc-500 text-sm">{error}</div>
+        <div className="text-tone-coral mb-2">Erro ao carregar dados</div>
+        <div className="text-muted text-sm">{error}</div>
       </div>
     );
   }
@@ -434,8 +434,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Overview — Recommended actions */}
-        <div className="border border-zinc-800 rounded-xl p-5">
-          <h2 className="text-lg font-semibold mb-4">Ações recomendadas</h2>
+        <div className="border border-border-subtle rounded-xl p-5">
+          <h2 className="head text-lg font-semibold mb-4">Ações recomendadas</h2>
           <div className="space-y-3">
             {failedCount > 0 && (
               <ActionRow
@@ -477,7 +477,7 @@ export default function DashboardPage() {
               trialAttendedCount === 0 &&
               trialNoShowCount === 0 &&
               leadsActionable.length === 0 && (
-                <div className="text-zinc-500 text-sm py-2">Tudo em ordem — sem ações pendentes.</div>
+                <div className="text-muted text-sm py-2">Tudo em ordem — sem ações pendentes.</div>
               )}
           </div>
         </div>
@@ -542,7 +542,7 @@ export default function DashboardPage() {
       {/* Priority 1: Trials que foram à aula */}
       <SalesSection
         title="Prioridade 1: Trials que foram à aula"
-        borderColor="border-pink-600"
+        borderColor="border-tone-magenta"
         count={trialsWentToClass.length}
         emptyText="Nenhum trial que foi à aula pendente."
       >
@@ -557,7 +557,7 @@ export default function DashboardPage() {
         {trialsWentToClass.length > 10 && (
           <button
             onClick={() => router.push("/dashboard/trials")}
-            className="text-pink-400 text-sm hover:underline mt-2"
+            className="text-tone-magenta text-sm hover:underline mt-2"
           >
             Ver todos ({trialsWentToClass.length})
           </button>
@@ -567,7 +567,7 @@ export default function DashboardPage() {
       {/* Priority 2: Trials que faltaram */}
       <SalesSection
         title="Prioridade 2: Trials que faltaram"
-        borderColor="border-amber-600"
+        borderColor="border-tone-amber"
         count={trialsMissed.length}
         emptyText="Nenhum trial que faltou pendente."
       >
@@ -582,7 +582,7 @@ export default function DashboardPage() {
         {trialsMissed.length > 10 && (
           <button
             onClick={() => router.push("/dashboard/trials")}
-            className="text-amber-400 text-sm hover:underline mt-2"
+            className="text-tone-amber text-sm hover:underline mt-2"
           >
             Ver todos ({trialsMissed.length})
           </button>
@@ -592,7 +592,7 @@ export default function DashboardPage() {
       {/* Priority 3: Leads frios */}
       <SalesSection
         title="Prioridade 3: Leads frios"
-        borderColor="border-purple-600"
+        borderColor="border-tone-magenta"
         count={leadsActionable.length}
         emptyText="Nenhum lead frio pendente."
       >
@@ -607,7 +607,7 @@ export default function DashboardPage() {
         {leadsActionable.length > 10 && (
           <button
             onClick={() => router.push("/dashboard/leads")}
-            className="text-purple-400 text-sm hover:underline mt-2"
+            className="text-tone-magenta text-sm hover:underline mt-2"
           >
             Ver todos ({leadsActionable.length})
           </button>
@@ -629,20 +629,20 @@ function ActionRow({
   onClick: () => void;
 }) {
   const dotColor = {
-    red: "bg-red-500",
-    amber: "bg-amber-500",
-    pink: "bg-pink-500",
-    purple: "bg-purple-500",
-    blue: "bg-blue-500",
+    red: "bg-tone-coral",
+    amber: "bg-tone-amber",
+    pink: "bg-tone-magenta",
+    purple: "bg-tone-magenta",
+    blue: "bg-tone-blue",
   }[color];
 
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 w-full text-left p-3 rounded-lg bg-black/30 hover:bg-black/50 transition"
+      className="flex items-center gap-3 w-full text-left p-3 rounded-lg bg-surface hover:bg-surface2/50 transition"
     >
       <span className={`w-2 h-2 rounded-full ${dotColor} shrink-0`} />
-      <span className="text-sm text-zinc-300">{label}</span>
+      <span className="text-sm text-muted-strong">{label}</span>
     </button>
   );
 }
@@ -663,11 +663,11 @@ function SalesSection({
   return (
     <div className={`border ${borderColor} rounded-xl p-5`}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <span className="text-zinc-500 text-sm">{count} registos</span>
+        <h2 className="head text-lg font-semibold">{title}</h2>
+        <span className="text-muted text-sm">{count} registos</span>
       </div>
       {count === 0 ? (
-        <div className="text-zinc-500 text-sm py-2">{emptyText}</div>
+        <div className="text-muted text-sm py-2">{emptyText}</div>
       ) : (
         <div className="space-y-2">{children}</div>
       )}
@@ -685,10 +685,10 @@ function LeadRow({
   pill: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-black/30">
+    <div className="flex items-center justify-between p-3 rounded-lg bg-surface">
       <div>
         <div className="text-sm font-medium text-white">{name}</div>
-        <div className="text-xs text-zinc-500">{email}</div>
+        <div className="text-xs text-muted">{email}</div>
       </div>
       {pill}
     </div>

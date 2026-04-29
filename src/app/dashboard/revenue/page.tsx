@@ -44,8 +44,8 @@ export default function RevenuePage() {
   }, [refreshKey, fetchGraphQL, setLastFetch]);
 
   if (loading) return <div className="py-12 text-center"><LoaderIcon /></div>;
-  if (error) return <div className="py-12 text-center text-red-500 text-sm">Erro: {error}</div>;
-  if (!report) return <div className="py-12 text-center text-zinc-500">Sem dados de faturação</div>;
+  if (error) return <div className="py-12 text-center text-tone-coral text-sm">Erro: {error}</div>;
+  if (!report) return <div className="py-12 text-center text-muted">Sem dados de faturação</div>;
 
   const items = report.items || [];
   const revenueTotal = items.reduce((s, i) => s + (i.totalInclVat || 0), 0);
@@ -70,8 +70,8 @@ export default function RevenuePage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Faturação {new Date().getFullYear()}</h2>
-        <span className="text-zinc-500 text-xs">{items.length} transacções</span>
+        <h2 className="head text-lg font-semibold">Faturação {new Date().getFullYear()}</h2>
+        <span className="text-muted text-xs">{items.length} transacções</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <MiniStat label="Total c/ IVA" value={eur(revenueTotal)} color="emerald" />
@@ -79,34 +79,34 @@ export default function RevenuePage() {
         <MiniStat label="IVA cobrado" value={eur(revenueVat)} />
         <MiniStat label="Média mensal" value={eur(avgMonth)} color="emerald" />
       </div>
-      <div className="bg-black/40 rounded-lg p-4 mb-6">
-        <h3 className="text-sm font-semibold text-zinc-400 mb-4">Faturação mensal</h3>
+      <div className="bg-surface rounded-lg p-4 mb-6">
+        <h3 className="head text-sm font-semibold text-muted-strong mb-4">Faturação mensal</h3>
         <BarChart data={monthly} currentIdx={currentMonth} />
       </div>
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-black/40 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-zinc-400 mb-3">Top items por faturação</h3>
+        <div className="bg-surface rounded-lg p-4">
+          <h3 className="head text-sm font-semibold text-muted-strong mb-3">Top items por faturação</h3>
           <div className="space-y-2 max-h-80 overflow-y-auto">
             {topItems.slice(0, 15).map((item, i) => {
               const pct = (item.total / revenueTotal) * 100;
               return (
                 <div key={i} className="text-sm">
-                  <div className="flex justify-between mb-1"><span className="truncate pr-2">{item.name}</span><span className="text-emerald-400 font-medium flex-shrink-0">{eur(item.total)}</span></div>
-                  <div className="flex items-center gap-2"><div className="flex-1 h-1.5 bg-zinc-800 rounded overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: Math.min(100, pct) + "%" }} /></div><span className="text-xs text-zinc-500 flex-shrink-0">{item.count}× · {pct.toFixed(1)}%</span></div>
+                  <div className="flex justify-between mb-1"><span className="truncate pr-2">{item.name}</span><span className="num text-accent font-medium flex-shrink-0">{eur(item.total)}</span></div>
+                  <div className="flex items-center gap-2"><div className="flex-1 h-1.5 bg-border-subtle rounded overflow-hidden"><div className="h-full bg-accent" style={{ width: Math.min(100, pct) + "%" }} /></div><span className="text-xs text-muted flex-shrink-0">{item.count}× · {pct.toFixed(1)}%</span></div>
                 </div>
               );
             })}
           </div>
         </div>
-        <div className="bg-black/40 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-zinc-400 mb-3">Por tipo de item</h3>
+        <div className="bg-surface rounded-lg p-4">
+          <h3 className="head text-sm font-semibold text-muted-strong mb-3">Por tipo de item</h3>
           <div className="space-y-2">
             {typeBreakdown.map(([type, amount]) => {
               const pct = (amount / revenueTotal) * 100;
               return (
                 <div key={type} className="text-sm">
-                  <div className="flex justify-between mb-1"><span className="capitalize">{type.replace(/_/g, " ")}</span><span className="text-emerald-400 font-medium">{eur(amount)}</span></div>
-                  <div className="flex items-center gap-2"><div className="flex-1 h-1.5 bg-zinc-800 rounded overflow-hidden"><div className="h-full bg-blue-600" style={{ width: Math.min(100, pct) + "%" }} /></div><span className="text-xs text-zinc-500 flex-shrink-0">{pct.toFixed(1)}%</span></div>
+                  <div className="flex justify-between mb-1"><span className="capitalize">{type.replace(/_/g, " ")}</span><span className="num text-accent font-medium">{eur(amount)}</span></div>
+                  <div className="flex items-center gap-2"><div className="flex-1 h-1.5 bg-border-subtle rounded overflow-hidden"><div className="h-full bg-tone-blue" style={{ width: Math.min(100, pct) + "%" }} /></div><span className="text-xs text-muted flex-shrink-0">{pct.toFixed(1)}%</span></div>
                 </div>
               );
             })}
