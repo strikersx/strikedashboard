@@ -19,14 +19,14 @@ interface StatCardProps {
 export function StatCard({ icon, label, value, sublabel, color, loading, error, onClick, active }: StatCardProps) {
   const c = COLOR_MAP[color];
   return (
-    <div onClick={onClick} className={`bg-zinc-900 border rounded-xl p-5 transition cursor-pointer ${active ? "border-red-600" : "border-zinc-800 hover:border-zinc-700"}`}>
+    <div onClick={onClick} className={`bg-surface border rounded-xl p-3 sm:p-4 md:p-5 transition cursor-pointer ${active ? "border-accent" : "border-border-subtle hover:border-border-strong"}`}>
       <div className="flex items-start justify-between mb-3">
         <div className={`p-2 rounded-lg ${c.bg} ${c.text}`}>{icon}</div>
-        {onClick && <span className="text-zinc-600"><ChevronRightIcon /></span>}
+        {onClick && <span className="text-muted"><ChevronRightIcon /></span>}
       </div>
-      <div className="text-zinc-400 text-sm mb-1">{label}</div>
-      {loading ? (<span className="text-zinc-500"><LoaderIcon /></span>) : error ? (<div className="text-red-500 text-sm">— erro</div>) : (<div className="text-2xl xl:text-3xl font-bold text-white">{value}</div>)}
-      {sublabel && <div className="text-xs text-zinc-500 mt-1">{sublabel}</div>}
+      <div className="text-muted-strong text-xs font-semibold uppercase tracking-wider mb-1">{label}</div>
+      {loading ? (<span className="text-muted"><LoaderIcon /></span>) : error ? (<div className="text-red-500 text-sm">— erro</div>) : (<div className="num text-2xl xl:text-3xl font-bold text-white">{value}</div>)}
+      {sublabel && <div className="text-xs text-muted mt-1">{sublabel}</div>}
     </div>
   );
 }

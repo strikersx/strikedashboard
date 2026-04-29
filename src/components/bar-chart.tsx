@@ -16,18 +16,18 @@ export function BarChart({ data, height = 240, currentIdx }: BarChartProps) {
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
       {ticks.map((t, i) => (
         <g key={i}>
-          <line x1={pad.left} x2={W - pad.right} y1={pad.top + ch * (1 - t)} y2={pad.top + ch * (1 - t)} stroke="#27272a" strokeDasharray="3 3" />
-          <text x={pad.left - 6} y={pad.top + ch * (1 - t) + 4} fill="#71717a" fontSize="11" textAnchor="end">{fmtTick(maxV * t)}</text>
+          <line x1={pad.left} x2={W - pad.right} y1={pad.top + ch * (1 - t)} y2={pad.top + ch * (1 - t)} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+          <text x={pad.left - 6} y={pad.top + ch * (1 - t) + 4} fill="rgba(255,255,255,0.5)" fontSize="11" textAnchor="end">{fmtTick(maxV * t)}</text>
         </g>
       ))}
       {data.map((d, i) => {
         const x = pad.left + i * (cw / data.length) + gp / 2;
         const h = (d.value / maxV) * ch, y = pad.top + ch - h;
-        const fill = i === currentIdx ? "#10b981" : i < (currentIdx ?? -1) ? "#059669" : "#3f3f46";
+        const fill = i === currentIdx ? "#00E5A0" : i < (currentIdx ?? -1) ? "rgba(0,229,160,0.6)" : "#15151C";
         return (
           <g key={i}>
             <rect x={x} y={y} width={bw} height={h} fill={fill} rx={3}><title>{d.label}: {eur(d.value)}</title></rect>
-            <text x={x + bw / 2} y={H - pad.bottom + 16} fill="#a1a1aa" fontSize="11" textAnchor="middle">{d.label}</text>
+            <text x={x + bw / 2} y={H - pad.bottom + 16} fill="rgba(255,255,255,0.5)" fontSize="11" textAnchor="middle">{d.label}</text>
           </g>
         );
       })}

@@ -26,21 +26,21 @@ export function ClassList({ classes, mode = "trial", empty = "Sem aulas" }: Clas
     <div className="space-y-5">
       {Object.entries(byDate).map(([date, list]) => (
         <div key={date}>
-          <h3 className={`text-sm mb-2 font-semibold uppercase tracking-wide flex items-center gap-2 ${isToday(date) ? "text-emerald-400" : "text-zinc-400"}`}>
+          <h3 className={`text-sm mb-2 font-semibold uppercase tracking-wide flex items-center gap-2 ${isToday(date) ? "text-accent" : "text-muted-strong"}`}>
             <CalendarIcon /> {dateLabel(date)}
           </h3>
           <div className="space-y-2">
             {list.map((c) => {
               const visitorCount = (c.urban_sports_club_signup_count || 0) + (c.classpass_com_signup_count || 0) + (c.bruce_app_signup_count || 0);
               const newCount = mode === "trial" ? (c.signup_count || 0) : visitorCount;
-              const borderClr = mode === "trial" ? "border-emerald-500" : "border-blue-500";
-              const textClr = mode === "trial" ? "text-emerald-400" : "text-blue-400";
+              const borderClr = mode === "trial" ? "border-accent" : "border-tone-blue";
+              const textClr = mode === "trial" ? "text-accent" : "text-tone-blue";
               return (
-                <div key={c.id} className={`bg-black/40 rounded-lg p-3 border-l-4 ${borderClr}`}>
+                <div key={c.id} className={`bg-surface border border-border-subtle rounded-lg p-3 border-l-4 ${borderClr}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="font-medium flex items-center gap-2">{c.class_type?.name || "Aula"}<span className={`text-sm font-bold ${textClr}`}>+{newCount}</span></div>
-                      <div className="text-xs text-zinc-500 mt-1 flex items-center gap-3 flex-wrap">
+                      <div className="text-xs text-muted mt-1 flex items-center gap-3 flex-wrap">
                         <span className="flex items-center gap-1"><ClockIcon />{(c.start_time || "").slice(0, 5)} — {(c.end_time || "").slice(0, 5)}</span>
                         {c.teachers?.[0]?.first_name && <span>· {c.teachers[0].first_name} {c.teachers[0].last_name || ""}</span>}
                         {c.room?.name && <span>{c.room.name}</span>}
