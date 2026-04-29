@@ -6,8 +6,10 @@ import { useDashboard } from "@/app/dashboard/layout";
 import { StatCard } from "@/components/stat-card";
 import { PaymentBadge } from "@/components/payment-badge";
 import { LoaderIcon, UsersIcon, EuroIcon } from "@/components/icons";
-import { getPlan, isPTPlan, eur } from "@/lib/utils";
+import { getPlan, isPTPlan, planColor, eur } from "@/lib/utils";
 import { ALL_SUB_IDS, PLAN_ORDER, PLAN_VALUES } from "@/lib/constants";
+import { Pill } from "@/components/pill";
+import type { ColorName } from "@/lib/constants";
 
 interface Customer {
   id: number;
@@ -130,7 +132,7 @@ export default function PTsPage() {
               <div key={c.id} className="flex items-center justify-between py-2 border-b border-border-subtle last:border-0">
                 <div>
                   <div className="text-sm font-medium text-white">{[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}</div>
-                  <div className="text-xs text-muted">{getPlan(c.has_membership_membership_description)}{c.phone ? ` · ${c.phone}` : ""}</div>
+                  <div className="text-xs text-muted flex items-center gap-2"><Pill color={planColor(getPlan(c.has_membership_membership_description)) as ColorName}>{getPlan(c.has_membership_membership_description)}</Pill>{c.phone && <span>{c.phone}</span>}</div>
                 </div>
                 <PaymentBadge paidUntil={c.paid_until} />
               </div>
@@ -143,7 +145,7 @@ export default function PTsPage() {
         {planGroups.map(({ plan, customers }) => (
           <div key={plan} className="bg-surface rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-white">{plan}</h2>
+              <Pill color={planColor(plan) as ColorName}>{plan}</Pill>
               <span className="text-muted-strong text-sm"><span className="num">{customers.length}</span> cliente{customers.length !== 1 ? "s" : ""} · {eur(customers.length * (PLAN_VALUES[plan] || 0))}/mês</span>
             </div>
             <div className="space-y-2">

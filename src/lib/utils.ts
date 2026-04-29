@@ -59,6 +59,18 @@ export function getPlan(desc: string | null | undefined): string {
 
 export function isPTPlan(plan: string): boolean { return /^PT/.test(plan); }
 
+export function planColor(plan: string): string {
+  if (/24 sessões/i.test(plan)) return "electric";
+  if (/12 sessões/i.test(plan)) return "blue";
+  if (/8 sessões/i.test(plan)) return "mint";
+  if (/Trimestral/i.test(plan)) return "lime";
+  if (/PT.*3x/i.test(plan)) return "magenta";
+  if (/PT 12/i.test(plan)) return "magenta";
+  if (/PT 8/i.test(plan)) return "coral";
+  if (/PT 4/i.test(plan)) return "amber";
+  return "blue";
+}
+
 export function isNonActionableLead(customer: { email?: string }): boolean {
   const email = (customer.email || "").toLowerCase();
   if (email.startsWith("usc-") && email.includes("urbansportsclub.com")) return true;

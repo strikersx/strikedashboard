@@ -6,7 +6,7 @@ import { useDashboard } from "@/app/dashboard/layout";
 import { StatCard } from "@/components/stat-card";
 import { PaymentBadge } from "@/components/payment-badge";
 import { LoaderIcon, UsersIcon, EuroIcon } from "@/components/icons";
-import { getPlan, isPTPlan, eur } from "@/lib/utils";
+import { getPlan, isPTPlan, planColor, eur } from "@/lib/utils";
 import { ALL_SUB_IDS, PLAN_ORDER, PLAN_VALUES } from "@/lib/constants";
 import { Pill } from "@/components/pill";
 
@@ -131,8 +131,7 @@ export default function SubscribersPage() {
           <div key={plan} className="bg-surface rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <h2 className="font-semibold text-white">{plan}</h2>
-                {isPTPlan(plan) && <Pill color="cyan">PT</Pill>}
+                <Pill color={planColor(plan) as import("@/lib/constants").ColorName}>{plan}</Pill>
               </div>
               <span className="text-muted-strong text-sm"><span className="num">{customers.length}</span> · ~{eur(customers.length * (PLAN_VALUES[plan] || 0))}/mês</span>
             </div>

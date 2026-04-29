@@ -5,6 +5,8 @@ import { useYogoFetch } from "@/hooks/use-yogo";
 import { useDashboard } from "@/app/dashboard/layout";
 import { Pill } from "@/components/pill";
 import { LoaderIcon } from "@/components/icons";
+import { planColor, getPlan } from "@/lib/utils";
+import type { ColorName } from "@/lib/constants";
 
 interface Membership {
   id: number;
@@ -75,7 +77,7 @@ export default function FailedPage() {
                     <Pill color="red">pagamento falhado</Pill>
                   </div>
                   <div className="text-xs text-muted flex flex-wrap gap-x-4 gap-y-0.5">
-                    {m.membership_type_name && <span>{m.membership_type_name}</span>}
+                    {m.membership_type_name && <Pill color={planColor(getPlan(m.membership_type_name)) as ColorName}>{m.membership_type_name}</Pill>}
                     {m.user_email && <span>{m.user_email}</span>}
                     {m.user_phone && <span>{m.user_phone}</span>}
                   </div>
