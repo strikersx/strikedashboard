@@ -3,12 +3,22 @@
 import { useState, useCallback } from "react";
 import { parseReport } from "@/lib/utils";
 
-// Global in-memory cache: key -> { data, timestamp }
-const cache = new Map<string, { data: unknown; ts: number }>();
+// Global in-memory cache persisted on globalThis to survive HMR
+const CACHE_KEY = "__yogoApiCache";
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
+type CacheEntry = { data: unknown; ts: number };
+type CacheMap = Map<string, CacheEntry>;
+
+function getCache(): CacheMap {
+  const g = globalThis as unknown as Record<string, CacheMap>;
+  if (!g[CACHE_KEY]) g[CACHE_KEY] = new Map();
+  return g[CACHE_KEY];
+}
+
 export function clearYogoCache() {
-  cache.clear();
+  getCache().clear();
+  console.log("[Cache] cleared");
 }
 
 function getCacheKey(path: string, body?: string): string {
@@ -16,17 +26,21 @@ function getCacheKey(path: string, body?: string): string {
 }
 
 function getFromCache(key: string): unknown | null {
+  const cache = getCache();
   const entry = cache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.ts > CACHE_TTL) {
     cache.delete(key);
+    console.log("[Cache] expired:", key.slice(0, 60));
     return null;
   }
+  console.log("[Cache] HIT:", key.slice(0, 60));
   return entry.data;
 }
 
-function setCache(key: string, data: unknown) {
-  cache.set(key, { data, ts: Date.now() });
+function putCache(key: string, data: unknown) {
+  getCache().set(key, { data, ts: Date.now() });
+  console.log("[Cache] stored:", key.slice(0, 60), `(${getCache().size} entries)`);
 }
 
 interface FetchState<T> {
@@ -52,27 +66,29 @@ export function useYogoFetch() {
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
-    setCache(key, data);
+    putCache(key, data);
     return data;
   }, []);
 
   const fetchReport = useCallback(
     async (path: string, body: unknown) => {
       const bodyStr = JSON.stringify(body);
-      const key = getCacheKey(path, bodyStr);
+      const key = `REPORT:${path}:${bodyStr}`;
       const cached = getFromCache(key);
       if (cached) return cached as Record<string, unknown>[];
 
-      const raw = await fetchYogo(path, {
+      const res = await fetch("/api/yogo/" + path, {
         method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: bodyStr,
       });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const raw = await res.json();
       const parsed = parseReport(raw);
-      // cache the parsed result directly
-      setCache(key, parsed);
+      putCache(key, parsed);
       return parsed;
     },
-    [fetchYogo]
+    []
   );
 
   const fetchGraphQL = useCallback(
@@ -89,7 +105,7 @@ export function useYogoFetch() {
       });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
-      setCache(key, data);
+      putCache(key, data);
       return data;
     },
     []
