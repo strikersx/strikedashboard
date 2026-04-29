@@ -93,11 +93,11 @@ export default function ClassesPage() {
   const totalVisitors = classes.reduce((s, c) => s + visitorCount(c), 0);
 
   if (loading) return <div className="py-20 flex justify-center"><LoaderIcon /></div>;
-  if (error) return <div className="py-20 text-center text-red-500 text-sm">Erro: {error}</div>;
+  if (error) return <div className="py-20 text-center text-tone-coral text-sm">Erro: {error}</div>;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold">Aulas com Visitantes (USC / CP / Bruce)</h1>
+      <h1 className="head text-xl font-bold">Aulas com Visitantes (USC / CP / Bruce)</h1>
 
       <div className="grid grid-cols-3 gap-3">
         <MiniStat label="Hoje" value={todayVisitors} color="blue" />

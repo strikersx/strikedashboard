@@ -104,7 +104,7 @@ export default function PTsPage() {
   useEffect(() => { load(); }, [load, refreshKey]);
 
   if (loading) return <div className="py-20 flex justify-center"><LoaderIcon /></div>;
-  if (error) return <div className="py-20 text-center text-red-500 text-sm">Erro: {error}</div>;
+  if (error) return <div className="py-20 text-center text-tone-coral text-sm">Erro: {error}</div>;
 
   // Sort all PT customers by paid_until for "próximos pagamentos"
   const allPTsSorted = planGroups
@@ -115,7 +115,7 @@ export default function PTsPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-xl font-bold">PTs do Marcelo ({totalPTs})</h1>
+      <h1 className="head text-xl font-bold">PTs do Marcelo (<span className="num">{totalPTs}</span>)</h1>
 
       <div className="grid grid-cols-2 gap-4">
         <StatCard icon={<UsersIcon />} label="Total clientes PT" value={totalPTs} color="cyan" />
@@ -123,14 +123,14 @@ export default function PTsPage() {
       </div>
 
       {allPTsSorted.length > 0 && (
-        <div className="bg-cyan-950/20 border border-cyan-900/40 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-cyan-400 uppercase tracking-wide mb-3">Próximos pagamentos</h2>
+        <div className="bg-tone-mint/8 border border-tone-mint/20 rounded-xl p-5">
+          <h2 className="head text-sm font-semibold text-tone-mint uppercase tracking-wide mb-3">Próximos pagamentos</h2>
           <div className="space-y-2">
             {allPTsSorted.map((c) => (
-              <div key={c.id} className="flex items-center justify-between py-2 border-b border-zinc-700/40 last:border-0">
+              <div key={c.id} className="flex items-center justify-between py-2 border-b border-border-subtle last:border-0">
                 <div>
-                  <div className="text-sm font-medium text-zinc-100">{[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}</div>
-                  <div className="text-xs text-zinc-500">{getPlan(c.has_membership_membership_description)}{c.phone ? ` · ${c.phone}` : ""}</div>
+                  <div className="text-sm font-medium text-white">{[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}</div>
+                  <div className="text-xs text-muted">{getPlan(c.has_membership_membership_description)}{c.phone ? ` · ${c.phone}` : ""}</div>
                 </div>
                 <PaymentBadge paidUntil={c.paid_until} />
               </div>
@@ -141,17 +141,17 @@ export default function PTsPage() {
 
       <div className="space-y-6">
         {planGroups.map(({ plan, customers }) => (
-          <div key={plan} className="bg-zinc-800/40 rounded-xl p-5">
+          <div key={plan} className="bg-surface rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-white">{plan}</h2>
-              <span className="text-zinc-400 text-sm">{customers.length} cliente{customers.length !== 1 ? "s" : ""} · {eur(customers.length * (PLAN_VALUES[plan] || 0))}/mês</span>
+              <span className="text-muted-strong text-sm"><span className="num">{customers.length}</span> cliente{customers.length !== 1 ? "s" : ""} · {eur(customers.length * (PLAN_VALUES[plan] || 0))}/mês</span>
             </div>
             <div className="space-y-2">
               {customers.map((c) => (
-                <div key={c.id} className="flex items-center justify-between py-2 border-b border-zinc-700/40 last:border-0">
+                <div key={c.id} className="flex items-center justify-between py-2 border-b border-border-subtle last:border-0">
                   <div>
-                    <div className="text-sm font-medium text-zinc-100">{[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}</div>
-                    <div className="text-xs text-zinc-500">{c.email || "—"}{c.phone ? ` · ${c.phone}` : ""}</div>
+                    <div className="text-sm font-medium text-white">{[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}</div>
+                    <div className="text-xs text-muted">{c.email || "—"}{c.phone ? ` · ${c.phone}` : ""}</div>
                   </div>
                   <PaymentBadge paidUntil={c.paid_until} />
                 </div>

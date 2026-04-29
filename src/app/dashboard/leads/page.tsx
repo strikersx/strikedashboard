@@ -54,13 +54,13 @@ export default function LeadsPage() {
   useEffect(() => { load(); }, [load, refreshKey]);
 
   if (loading) return <div className="py-20 flex justify-center"><LoaderIcon /></div>;
-  if (error) return <div className="py-20 text-center text-red-500 text-sm">Erro: {error}</div>;
+  if (error) return <div className="py-20 text-center text-tone-coral text-sm">Erro: {error}</div>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold">Leads frios accionáveis</h1>
-        <p className="text-zinc-500 text-sm mt-1">Cadastraram-se mas nunca compraram</p>
+        <h1 className="head text-xl font-bold">Leads frios accionáveis</h1>
+        <p className="text-muted text-sm mt-1">Cadastraram-se mas nunca compraram</p>
       </div>
       <DataTable rows={leads} title="Leads" empty="Nenhum lead encontrado" />
     </div>

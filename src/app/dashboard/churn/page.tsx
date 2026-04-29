@@ -74,13 +74,13 @@ export default function ChurnPage() {
   useEffect(() => { load(); }, [load, refreshKey]);
 
   if (loading) return <div className="py-20 flex justify-center"><LoaderIcon /></div>;
-  if (error) return <div className="py-20 text-center text-red-500 text-sm">Erro: {error}</div>;
+  if (error) return <div className="py-20 text-center text-tone-coral text-sm">Erro: {error}</div>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold">Risco de churn</h1>
-        <p className="text-zinc-500 text-sm mt-1">Sem reservas nos últimos 30 dias</p>
+        <h1 className="head text-xl font-bold">Risco de churn</h1>
+        <p className="text-muted text-sm mt-1">Sem reservas nos últimos 30 dias</p>
       </div>
       <DataTable
         rows={rows}

@@ -49,39 +49,39 @@ export default function FailedPage() {
   useEffect(() => { load(); }, [load, refreshKey]);
 
   if (loading) return <div className="py-20 flex justify-center"><LoaderIcon /></div>;
-  if (error) return <div className="py-20 text-center text-red-500 text-sm">Erro: {error}</div>;
+  if (error) return <div className="py-20 text-center text-tone-coral text-sm">Erro: {error}</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Pagamentos falhados</h1>
-          <p className="text-zinc-500 text-sm mt-1">Subscrições terminadas por falha de pagamento</p>
+          <h1 className="head text-xl font-bold">Pagamentos falhados</h1>
+          <p className="text-muted text-sm mt-1">Subscrições terminadas por falha de pagamento</p>
         </div>
-        <span className="text-zinc-400 text-sm">{memberships.length} registo{memberships.length !== 1 ? "s" : ""}</span>
+        <span className="text-muted-strong text-sm"><span className="num">{memberships.length}</span> registo{memberships.length !== 1 ? "s" : ""}</span>
       </div>
 
       {memberships.length === 0 ? (
-        <div className="py-12 text-center text-zinc-500">Nenhum pagamento falhado encontrado</div>
+        <div className="py-12 text-center text-muted">Nenhum pagamento falhado encontrado</div>
       ) : (
         <div className="space-y-2">
           {memberships.map((m) => {
             const name = m.user_full_name || [m.user_first_name, m.user_last_name].filter(Boolean).join(" ") || `Membership #${m.id}`;
             return (
-              <div key={m.id} className="bg-zinc-800/40 rounded-lg p-4 flex items-center justify-between gap-4">
+              <div key={m.id} className="bg-surface rounded-lg p-4 flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-zinc-100">{name}</span>
+                    <span className="font-medium text-white">{name}</span>
                     <Pill color="red">pagamento falhado</Pill>
                   </div>
-                  <div className="text-xs text-zinc-500 flex flex-wrap gap-x-4 gap-y-0.5">
+                  <div className="text-xs text-muted flex flex-wrap gap-x-4 gap-y-0.5">
                     {m.membership_type_name && <span>{m.membership_type_name}</span>}
                     {m.user_email && <span>{m.user_email}</span>}
                     {m.user_phone && <span>{m.user_phone}</span>}
                   </div>
                 </div>
                 {m.paid_until && (
-                  <div className="text-xs text-zinc-500 shrink-0">Até {m.paid_until}</div>
+                  <div className="text-xs text-muted shrink-0">Até {m.paid_until}</div>
                 )}
               </div>
             );
