@@ -2,7 +2,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { HomeIcon, FunnelIcon, UsersIcon, FlameIcon, GridIcon } from "./icons";
+import { HomeIcon, FunnelIcon, FlameIcon, GridIcon, UserPlusIcon } from "./icons";
 import type { Role } from "@/lib/constants";
 
 interface Tab {
@@ -16,8 +16,8 @@ interface Tab {
 const TABS: Tab[] = [
   { id: "home",   href: "/dashboard",              label: "Início", icon: <HomeIcon className="w-5 h-5" /> },
   { id: "funnel", href: "/dashboard/funnel",        label: "Funil",  icon: <FunnelIcon className="w-5 h-5" /> },
-  { id: "subs",   href: "/dashboard/subscribers",   label: "Subs",   icon: <UsersIcon className="w-5 h-5" />, adminOnly: true },
-  { id: "leads",  href: "/dashboard/trials",        label: "Leads",  icon: <FlameIcon className="w-5 h-5" /> },
+  { id: "leads",  href: "/dashboard/leads",         label: "Leads",  icon: <UserPlusIcon className="w-5 h-5" /> },
+  { id: "trials", href: "/dashboard/trials",        label: "Trials", icon: <FlameIcon className="w-5 h-5" /> },
   { id: "more",   href: "/dashboard/more",          label: "Mais",   icon: <GridIcon className="w-5 h-5" />, adminOnly: true },
 ];
 

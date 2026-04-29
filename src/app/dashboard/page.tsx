@@ -15,7 +15,7 @@ import {
 } from "@/components/icons";
 import {
   eur, isToday, isThisWeek, isThisMonth,
-  getDashboardRange, getLast30Days, fmtDate,
+  getDashboardRange, getLast30Days, fmtDate, getYesterday,
   getPlan, isPTPlan, isNonActionableLead,
 } from "@/lib/utils";
 import { ALL_SUB_IDS, RECURRING_SUB_IDS, TRIAL_CLASS_TYPE_ID, TRIAL_CLASS_PASS_ID } from "@/lib/constants";
@@ -95,11 +95,12 @@ export default function DashboardPage() {
       try {
         const { startDate: last30Start, endDate: last30End } = getLast30Days();
         const today = fmtDate(new Date());
+        const yesterday = getYesterday();
         const sixMAgo = sixMonthsAgo();
 
         const commonPromises = {
-          leads: fetchReport("reports/customers", { filters: [{ type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false }, { type: "hasNoClassPass", classPassTypeId: [], onlyActiveClassPasses: false }], returnColumnHeaders: true }),
-          trialNoConv: fetchReport("reports/customers", { filters: [{ type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false }, { type: "hasMembershipOrClassPass", membershipTypeId: [], classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveMembershipsOrClassPasses: false }], returnColumnHeaders: true }),
+          leads: fetchReport("reports/customers", { filters: [{ type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false }, { type: "hasNoClassPass", classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveClassPasses: false }], returnColumnHeaders: true }),
+          trialNoConv: fetchReport("reports/customers", { filters: [{ type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false }, { type: "hasMembershipOrClassPass", membershipTypeId: [], classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveMembershipsOrClassPasses: false }, { type: "numberOfSignups", classTypeId: [TRIAL_CLASS_TYPE_ID], membershipTypeId: [], conditionType: "greaterThanOrEquals", conditionAmount: 1, averagePerTimeUnit: "month", startDate: sixMAgo, endDate: yesterday, includeClassSignups: true, onlyCheckedInClassSignups: false, includeWaitingListSignups: false, includeLivestreamSignups: false, includeZeroSignups: false }], returnColumnHeaders: true }),
           trialAttended: fetchReport("reports/customers", { filters: [{ type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false }, { type: "hasMembershipOrClassPass", membershipTypeId: [], classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveMembershipsOrClassPasses: false }, { type: "numberOfSignups", classTypeId: [TRIAL_CLASS_TYPE_ID], membershipTypeId: [], conditionType: "greaterThanOrEquals", conditionAmount: 1, averagePerTimeUnit: "month", startDate: sixMAgo, endDate: today, includeClassSignups: true, onlyCheckedInClassSignups: true, includeWaitingListSignups: false, includeLivestreamSignups: false, includeZeroSignups: false }], returnColumnHeaders: true }),
           trialClasses: fetchYogo(classesUrl(true)),
           allClasses: fetchYogo(classesUrl(false)),
@@ -160,7 +161,10 @@ export default function DashboardPage() {
   const avgMonth = monthsElapsed > 0 ? Math.round(revenueTotal / monthsElapsed) : 0;
   const sparkData = buildSparkData(revenueItems);
 
-  const leadsActionable = leads.filter((l) => !isNonActionableLead(l as { email?: string }));
+  const trialIds = new Set(trialNoConv.map((t) => String(t.id || t.customer_id)));
+  const leadsActionable = leads
+    .filter((l) => !trialIds.has(String(l.id || l.customer_id)))
+    .filter((l) => !isNonActionableLead(l as { email?: string }));
   const attendedIds = new Set(trialAttended.map((r) => String(r.id || r.customer_id)));
   const trialEnriched = trialNoConv.map((t) => ({ ...t, attended: attendedIds.has(String(t.id || t.customer_id)) })) as (Rec & { attended: boolean })[];
   const trialAttendedCount = trialEnriched.filter((t) => t.attended).length;
@@ -256,7 +260,7 @@ export default function DashboardPage() {
           <KPICard icon={<CardIcon className="w-3.5 h-3.5" />} label="Pagamentos falhados" value={failed.length} sub="Memberships ended" tone="#FF3D2E" trendDir={failed.length > 0 ? "down" : "flat"} trendValue={`${failed.length}`} onClick={() => router.push("/dashboard/failed")} />
           <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Leads" value={leadsActionable.length} sub={`${leads.length - leadsActionable.length} não accionáveis`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
           <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Trials s/ conv." value={trialEnriched.length} sub={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`} tone="#FF2E88" trendDir={trialEnriched.length > 0 ? "down" : "flat"} trendValue={`${trialEnriched.length}`} onClick={() => router.push("/dashboard/trials")} />
-          <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Novos trials" value={newTrialToday} sub={`Semana ${newTrialWeek} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialToday > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
+          <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Novos trials" value={newTrialWeek} sub={`Hoje ${newTrialToday} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialWeek > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/trials")} />
           <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#3D7DFF" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
         </div>
 
@@ -292,7 +296,7 @@ export default function DashboardPage() {
       <div style={{ padding: "0 18px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Leads" value={leadsActionable.length} sub={`${leads.length - leadsActionable.length} filtrados`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
         <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Trials s/ conv." value={trialEnriched.length} sub={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`} tone="#FF2E88" trendDir="down" trendValue={`${trialEnriched.length}`} onClick={() => router.push("/dashboard/trials")} />
-        <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Novos trials" value={newTrialToday} sub={`Semana ${newTrialWeek} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialToday > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
+        <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Novos trials" value={newTrialWeek} sub={`Hoje ${newTrialToday} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialWeek > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/trials")} />
         <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#3D7DFF" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
       </div>
 

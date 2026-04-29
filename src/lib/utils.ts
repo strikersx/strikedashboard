@@ -11,6 +11,7 @@ export function monthLabel(m: number): string {
 }
 
 export function getToday(): string { return fmtDate(new Date()); }
+export function getYesterday(): string { const d = new Date(); d.setDate(d.getDate() - 1); return fmtDate(d); }
 
 export function getWeekStart(): string {
   const t = new Date();

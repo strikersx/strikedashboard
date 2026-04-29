@@ -7,6 +7,7 @@ import { MiniStat } from "@/components/mini-stat";
 import { BarChart } from "@/components/bar-chart";
 import { LoaderIcon } from "@/components/icons";
 import { eur, monthLabel } from "@/lib/utils";
+import { ALL_SUB_IDS } from "@/lib/constants";
 
 interface RevenueItem {
   itemType: string;
@@ -54,6 +55,11 @@ export default function RevenuePage() {
   const monthsElapsed = Math.max(1, new Date().getMonth() + 1);
   const avgMonth = revenueTotal / monthsElapsed;
 
+  const subItems = items.filter((i) => ALL_SUB_IDS.includes(i.itemId));
+  const subCount = subItems.reduce((s, i) => s + (i.itemCount || 0), 0);
+  const subRevenue = subItems.reduce((s, i) => s + (i.totalInclVat || 0), 0);
+  const ticketMedio = subCount > 0 ? subRevenue / subCount : 0;
+
   const byMonth: Record<number, number> = {};
   items.forEach((i) => { if (!i.eventStartDate) return; const m = new Date(i.eventStartDate).getMonth(); byMonth[m] = (byMonth[m] || 0) + (i.totalInclVat || 0); });
   const monthly = Array.from({ length: 12 }, (_, m) => ({ label: monthLabel(m), value: Math.round(byMonth[m] || 0) }));
@@ -76,7 +82,7 @@ export default function RevenuePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <MiniStat label="Total c/ IVA" value={eur(revenueTotal)} color="emerald" />
         <MiniStat label="Total s/ IVA" value={eur(revenueExVat)} />
-        <MiniStat label="IVA cobrado" value={eur(revenueVat)} />
+        <MiniStat label="Ticket médio" value={eur(ticketMedio)} color="emerald" />
         <MiniStat label="Média mensal" value={eur(avgMonth)} color="emerald" />
       </div>
       <div className="bg-surface rounded-lg p-4 mb-6">

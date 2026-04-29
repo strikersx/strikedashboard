@@ -4,7 +4,7 @@ import { useEffect, useCallback, useState } from "react";
 import { useYogoFetch } from "@/hooks/use-yogo";
 import { useDashboard } from "@/app/dashboard/layout";
 import { LoaderIcon } from "@/components/icons";
-import { fmtDate, getDashboardRange } from "@/lib/utils";
+import { fmtDate, getDashboardRange, getYesterday } from "@/lib/utils";
 import { TRIAL_CLASS_TYPE_ID, TRIAL_CLASS_PASS_ID } from "@/lib/constants";
 import { TrialRow } from "@/components/trial-row";
 
@@ -45,12 +45,14 @@ export default function TrialsPage() {
       const sixMonthsAgo = fmtDate(new Date(new Date().setMonth(new Date().getMonth() - 6)));
       const { startDate, endDate } = getDashboardRange();
 
+      const yesterday = getYesterday();
       const [allTrial, attendedTrial, classesRaw] = await Promise.all([
-        // All customers with trial class pass
+        // Customers with trial pass who had a class signup BEFORE today (past only — excludes future-scheduled)
         fetchReport("reports/customers", {
           filters: [
             { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
             { type: "hasMembershipOrClassPass", membershipTypeId: [], classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveMembershipsOrClassPasses: false },
+            { type: "numberOfSignups", classTypeId: [TRIAL_CLASS_TYPE_ID], membershipTypeId: [], conditionType: "greaterThanOrEquals", conditionAmount: 1, averagePerTimeUnit: "month", startDate: sixMonthsAgo, endDate: yesterday, includeClassSignups: true, onlyCheckedInClassSignups: false, includeWaitingListSignups: false, includeLivestreamSignups: false, includeZeroSignups: false },
           ],
           returnColumnHeaders: true,
         }),
@@ -142,7 +144,7 @@ export default function TrialsPage() {
             key={t.id}
             name={`${t.first_name ?? ""} ${t.last_name ?? ""}`.trim() || "Sem nome"}
             phone={t.phone}
-            registeredAt={t.createdAt ? new Date(t.createdAt).toLocaleDateString("pt-PT") : undefined}
+            registeredAt={t.createdAt ? String(t.createdAt).replace(/ às \d{2}:\d{2}.*/, "") : undefined}
             attended={t.attended ?? false}
           />
         ))}

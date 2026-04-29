@@ -13,9 +13,11 @@ interface Section {
 }
 
 const SECTIONS: Section[] = [
-  { id: "revenue",  label: "Faturação",           sub: "Receita e histórico de pagamentos",  icon: "⚡", href: "/dashboard/revenue" },
+  { id: "subs",     label: "Subscrições",          sub: "Membros activos e planos",           icon: "👥", href: "/dashboard/subscribers" },
+  { id: "revenue",  label: "Faturação",            sub: "Receita e histórico de pagamentos",  icon: "⚡", href: "/dashboard/revenue" },
   { id: "pts",      label: "PTs",                  sub: "Personal trainers e sessões",        icon: "👤", href: "/dashboard/pts" },
   { id: "trials",   label: "Experimentais",        sub: "Trials sem conversão",               icon: "🎫", href: "/dashboard/trials" },
+  { id: "leads",    label: "Leads Frios",          sub: "Cadastraram-se mas nunca compraram", icon: "❄️", href: "/dashboard/leads" },
   { id: "churn",    label: "Churn",                sub: "Membros em risco de cancelamento",   icon: "📉", href: "/dashboard/churn" },
   { id: "failed",   label: "Pagamentos falhados",  sub: "Cartões recusados ou expirados",     icon: "💳", href: "/dashboard/failed" },
   { id: "classes",  label: "Visitantes",           sub: "USC, ClassPass, Bruce App",          icon: "✨", href: "/dashboard/classes" },
