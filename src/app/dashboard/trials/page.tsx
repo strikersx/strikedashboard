@@ -72,13 +72,13 @@ export default function TrialsPage() {
       ]);
 
       const attendedIds = new Set(attendedTrial.map((t: Record<string, unknown>) => t.id));
-      const enriched = allTrial.map((t: Record<string, unknown>) => ({ ...t, attended: attendedIds.has(t.id) }));
+      const enriched = (allTrial as unknown as Customer[]).map((t) => ({ ...t, attended: attendedIds.has(t.id) }));
 
-      const attendedList = enriched.filter((c: Customer) => c.attended);
-      const noshowList = enriched.filter((c: Customer) => !c.attended);
+      const attendedList = enriched.filter((c) => c.attended);
+      const noshowList = enriched.filter((c) => !c.attended);
 
-      setAttended(attendedList as Customer[]);
-      setNoshow(noshowList as Customer[]);
+      setAttended(attendedList);
+      setNoshow(noshowList);
 
       // For scheduled (future): get all with trial pass, no class signups yet or future signups
       setScheduled(enriched.filter((c: Customer) => !c.attended) as Customer[]);
