@@ -49,6 +49,7 @@ export default function TrialsPage() {
         // All customers with trial class pass
         fetchReport("reports/customers", {
           filters: [
+            { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
             { type: "hasMembershipOrClassPass", membershipTypeId: [], classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveMembershipsOrClassPasses: false },
           ],
           returnColumnHeaders: true,
@@ -56,6 +57,7 @@ export default function TrialsPage() {
         // Those who actually attended
         fetchReport("reports/customers", {
           filters: [
+            { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
             { type: "hasMembershipOrClassPass", membershipTypeId: [], classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveMembershipsOrClassPasses: false },
             { type: "numberOfSignups", classTypeId: [TRIAL_CLASS_TYPE_ID], membershipTypeId: [], conditionType: "greaterThanOrEquals", conditionAmount: 1, averagePerTimeUnit: "month", startDate: sixMonthsAgo, endDate: today, includeClassSignups: true, onlyCheckedInClassSignups: true, includeWaitingListSignups: false, includeLivestreamSignups: false, includeZeroSignups: false },
           ],
