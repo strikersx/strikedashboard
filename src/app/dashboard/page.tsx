@@ -176,6 +176,21 @@ export default function DashboardPage() {
   const newTrialWeek = trialWithSignups.filter((c) => isThisWeek(String(c.date))).reduce((s, c) => s + Number(c.signup_count), 0);
   const newTrialMonth = trialWithSignups.filter((c) => isThisMonth(String(c.date))).reduce((s, c) => s + Number(c.signup_count), 0);
 
+  // Calculate next week trials
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const daysUntilNextMonday = (8 - dayOfWeek) % 7 || 7;
+  const nextMonday = new Date(today);
+  nextMonday.setDate(today.getDate() + daysUntilNextMonday);
+  const nextSunday = new Date(nextMonday);
+  nextSunday.setDate(nextMonday.getDate() + 6);
+  const nextWeekTrials = trialWithSignups.filter((c) => {
+    const d = new Date(String(c.date));
+    return d >= nextMonday && d <= nextSunday;
+  }).reduce((s, c) => s + Number(c.signup_count), 0);
+
+  const totalTrialsScheduled = newTrialWeek + nextWeekTrials;
+
   const allClassesArr = Array.isArray(allClasses) ? allClasses : [];
   const visitorSum = (c: Rec) => Number(c.urban_sports_club_signup_count || 0) + Number(c.classpass_com_signup_count || 0) + Number(c.bruce_app_signup_count || 0);
   const withVisitors = allClassesArr.filter((c) => visitorSum(c) > 0);
@@ -258,10 +273,12 @@ export default function DashboardPage() {
           <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Subscrições activas" value={subs.length} sub={`${groupSubsCount} grupo · ${ptCount} PT`} tone="#3D7DFF" trendDir="up" trendValue={`+${subs.length}`} onClick={() => router.push("/dashboard/subscribers")} />
           <KPICard icon={<TrendIcon className="w-3.5 h-3.5" />} label="Churn (30d)" value={churn.length} sub={`${churnPct}% — sem aulas em 30d`} tone="#FFB627" trendDir={churnPct > 10 ? "down" : "flat"} trendValue={`${churnPct}%`} onClick={() => router.push("/dashboard/churn")} />
           <KPICard icon={<CardIcon className="w-3.5 h-3.5" />} label="Pagamentos falhados" value={failed.length} sub="Memberships ended" tone="#FF3D2E" trendDir={failed.length > 0 ? "down" : "flat"} trendValue={`${failed.length}`} onClick={() => router.push("/dashboard/failed")} />
-          <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Leads" value={leadsActionable.length} sub={`${leads.length - leadsActionable.length} não accionáveis`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
-          <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Trials s/ conv." value={trialEnriched.length} sub={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`} tone="#FF2E88" trendDir={trialEnriched.length > 0 ? "down" : "flat"} trendValue={`${trialEnriched.length}`} onClick={() => router.push("/dashboard/trials")} />
-          <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Novos trials" value={newTrialWeek} sub={`Hoje ${newTrialToday} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialWeek > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/trials")} />
-          <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#3D7DFF" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
+          <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Total de Leads" value={leadsActionable.length + trialEnriched.length} sub={`Leads Hot ${trialAttendedCount} · Warm ${trialNoShowCount} · Cold ${leadsActionable.length}`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length + trialEnriched.length}`} onClick={() => router.push("/dashboard/leads")} />
+          <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Leads Hot" value={trialAttendedCount} sub="Foram à aula — fechar venda" tone="#FF2E88" trendDir="up" trendValue={`+${trialAttendedCount}`} onClick={() => router.push("/dashboard/leads")} />
+          <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Leads Warm" value={trialNoShowCount} sub="Faltaram — reagendar" tone="#FFB627" trendDir="flat" trendValue={`${trialNoShowCount}`} onClick={() => router.push("/dashboard/leads")} />
+          <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Leads Cold" value={leadsActionable.length} sub="Interessados — convencer" tone="#00E5A0" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
+          <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Trial" value={totalTrialsScheduled} sub={`Esta semana ${newTrialWeek} · Próxima ${nextWeekTrials}`} tone="#3D7DFF" trendDir={totalTrialsScheduled > 0 ? "up" : "flat"} trendValue={`${totalTrialsScheduled}`} onClick={() => router.push("/dashboard/trials")} />
+          <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#00E5A0" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
         </div>
 
         {/* ── Action rows ── */}
@@ -294,17 +311,17 @@ export default function DashboardPage() {
     <div style={{ paddingBottom: 32 }}>
       <SectionHead title="Funil de Conversão" />
       <div style={{ padding: "0 18px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Leads" value={leadsActionable.length} sub={`${leads.length - leadsActionable.length} filtrados`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
-        <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Trials s/ conv." value={trialEnriched.length} sub={`${trialAttendedCount} foram · ${trialNoShowCount} faltaram`} tone="#FF2E88" trendDir="down" trendValue={`${trialEnriched.length}`} onClick={() => router.push("/dashboard/trials")} />
-        <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Novos trials" value={newTrialWeek} sub={`Hoje ${newTrialToday} · Mês ${newTrialMonth}`} tone="#00E5A0" trendDir={newTrialWeek > 0 ? "up" : "flat"} trendValue={`${newTrialMonth} mês`} onClick={() => router.push("/dashboard/trials")} />
-        <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#3D7DFF" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
+        <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Total de Leads" value={leadsActionable.length + trialEnriched.length} sub={`Hot ${trialAttendedCount} · Warm ${trialNoShowCount} · Cold ${leadsActionable.length}`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length + trialEnriched.length}`} onClick={() => router.push("/dashboard/leads")} />
+        <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Leads Hot" value={trialAttendedCount} sub="Foram à aula — fechar venda" tone="#FF2E88" trendDir="up" trendValue={`+${trialAttendedCount}`} onClick={() => router.push("/dashboard/leads")} />
+        <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Leads Warm" value={trialNoShowCount} sub="Faltaram — reagendar" tone="#FFB627" trendDir="flat" trendValue={`${trialNoShowCount}`} onClick={() => router.push("/dashboard/leads")} />
+        <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Leads Cold" value={leadsActionable.length} sub="Interessados — convencer" tone="#00E5A0" trendDir="up" trendValue={`+${leadsActionable.length}`} onClick={() => router.push("/dashboard/leads")} />
       </div>
 
       <SectionHead title="Acções recomendadas" count={trialAttendedCount + trialNoShowCount + leadsActionable.length} />
       <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 8 }}>
-        {trialAttendedCount > 0 && <ActionRowHome count={trialAttendedCount} label="trials que foram à aula" detail="Lead quente — fechar venda nas próximas 24-48h" cta="Follow-up" tone="#FF2E88" onClick={() => router.push("/dashboard/trials")} onCta={() => router.push("/dashboard/trials")} />}
-        {trialNoShowCount > 0 && <ActionRowHome count={trialNoShowCount} label="trials que faltaram" detail="Confirmar e reagendar" cta="Reagendar" tone="#00E5A0" onClick={() => router.push("/dashboard/trials")} onCta={() => router.push("/dashboard/trials")} />}
-        {leadsActionable.length > 0 && <ActionRowHome count={leadsActionable.length} label="leads sem contacto há 7d" detail="Reactivar conversação antes que esfriem" cta="WhatsApp" tone="#A6E22E" onClick={() => router.push("/dashboard/leads")} onCta={() => router.push("/dashboard/leads")} />}
+        {trialAttendedCount > 0 && <ActionRowHome count={trialAttendedCount} label="Leads Hot para fechar" detail="Foram à aula — fechar venda nas próximas 24-48h" cta="Follow-up" tone="#FF2E88" onClick={() => router.push("/dashboard/leads")} onCta={() => router.push("/dashboard/leads")} />}
+        {trialNoShowCount > 0 && <ActionRowHome count={trialNoShowCount} label="Leads Warm para reagendar" detail="Faltaram à aula — confirmar e reagendar" cta="Contactar" tone="#FFB627" onClick={() => router.push("/dashboard/leads")} onCta={() => router.push("/dashboard/leads")} />}
+        {leadsActionable.length > 0 && <ActionRowHome count={leadsActionable.length} label="Leads Cold para converter" detail="Interessados — convencer a marcar aula" cta="WhatsApp" tone="#00E5A0" onClick={() => router.push("/dashboard/leads")} onCta={() => router.push("/dashboard/leads")} />}
       </div>
     </div>
   );
