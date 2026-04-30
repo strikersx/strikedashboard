@@ -62,7 +62,8 @@ export default function LeadsPage() {
   const [interessados, setInteressados] = useState<Lead[]>([]);
   const [foram, setForam] = useState<Customer[]>([]);
   const [faltaram, setFaltaram] = useState<Customer[]>([]);
-  const [tab, setTab] = useState<"foram" | "faltaram" | "interessados">("foram");
+  const [marcaram, setMarcaram] = useState<Customer[]>([]);
+  const [tab, setTab] = useState<"foram" | "faltaram" | "marcaram" | "interessados">("foram");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,6 +102,16 @@ export default function LeadsPage() {
         returnColumnHeaders: true,
       });
 
+      // Trial people who marked pass but never scheduled a class
+      const marcaramRows = await fetchReport("reports/customers", {
+        filters: [
+          { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
+          { type: "hasMembershipOrClassPass", membershipTypeId: [], classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveMembershipsOrClassPasses: false },
+          { type: "numberOfSignups", classTypeId: [TRIAL_CLASS_TYPE_ID], membershipTypeId: [], conditionType: "equals", conditionAmount: 0, averagePerTimeUnit: "month", startDate: sixMonthsAgo, endDate: today, includeClassSignups: true, onlyCheckedInClassSignups: false, includeWaitingListSignups: false, includeLivestreamSignups: false, includeZeroSignups: true },
+        ],
+        returnColumnHeaders: true,
+      });
+
       // Get attended IDs to filter out from noshow
       const attendedIds = new Set((attendedRows as unknown as Customer[]).map((c) => c.id));
       const noshowFiltered = (noshowRows as unknown as Customer[]).filter((c) => !attendedIds.has(c.id));
@@ -122,6 +133,7 @@ export default function LeadsPage() {
       // Filter out non-actionable leads from all tabs
       const actionableFoam = (attendedRows as unknown as Customer[]).filter((c) => !isNonActionableLead(c));
       const actionableFaltaram = noshowFiltered.filter((c) => !isNonActionableLead(c));
+      const actionableMarcaram = (marcaramRows as unknown as Customer[]).filter((c) => !isNonActionableLead(c));
 
       const interessadosList = (interessadosRows as unknown as Customer[])
         .filter((c) => !isNonActionableLead(c))
@@ -135,6 +147,7 @@ export default function LeadsPage() {
 
       setForam(actionableFoam);
       setFaltaram(actionableFaltaram);
+      setMarcaram(actionableMarcaram);
       setInteressados(interessadosList);
       setLastFetch(new Date());
     } catch (e) {
@@ -197,6 +210,24 @@ export default function LeadsPage() {
           className="tap"
         >
           Faltaram
+        </button>
+        <button
+          onClick={() => setTab("marcaram")}
+          style={{
+            flex: 1,
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: tab === "marcaram" ? "#9B59B6" : "#0F0F14",
+            border: `1px solid ${tab === "marcaram" ? "#9B59B6" : "rgba(255,255,255,0.06)"}`,
+            color: tab === "marcaram" ? "#fff" : "#fff",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+          className="tap"
+        >
+          Agendaram passe
         </button>
         <button
           onClick={() => setTab("interessados")}
@@ -264,6 +295,32 @@ export default function LeadsPage() {
                   phone={t.phone}
                   registeredAt={t.createdAt ? String(t.createdAt).replace(/ às \d{2}:\d{2}.*/, "") : undefined}
                   attended={false}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "marcaram" && (
+        <div>
+          <div style={{ padding: "0 18px 6px", display: "flex", alignItems: "baseline", gap: 8 }}>
+            <h3 className="head" style={{ margin: 0, fontSize: 18, color: "#fff" }}>Agendaram passe</h3>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{marcaram.length}</span>
+          </div>
+          <div style={{ padding: "4px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+            {marcaram.length === 0 ? (
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", padding: "8px 0" }}>
+                Nenhum registo nesta categoria.
+              </div>
+            ) : (
+              marcaram.map((t) => (
+                <TrialRow
+                  key={t.id}
+                  name={`${t.first_name ?? ""} ${t.last_name ?? ""}`.trim() || "Sem nome"}
+                  phone={t.phone}
+                  registeredAt={t.createdAt ? String(t.createdAt).replace(/ às \d{2}:\d{2}.*/, "") : undefined}
+                  attended={undefined}
                 />
               ))
             )}

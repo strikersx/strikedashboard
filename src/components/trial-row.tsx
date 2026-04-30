@@ -5,12 +5,12 @@ interface TrialRowProps {
   name: string;
   phone?: string;
   registeredAt?: string;
-  attended: boolean;
+  attended: boolean | undefined;
   onClick?: () => void;
 }
 
 export function TrialRow({ name, phone, registeredAt, attended, onClick }: TrialRowProps) {
-  const tone = attended ? "#FF2E88" : "#FFB627";
+  const tone = attended === true ? "#FF2E88" : attended === false ? "#FFB627" : "#9B59B6";
   const initials = name
     .split(" ")
     .map((w) => w[0])
@@ -78,7 +78,7 @@ export function TrialRow({ name, phone, registeredAt, attended, onClick }: Trial
           flexShrink: 0,
         }}
       >
-        {attended ? "✓ FOI" : "× FALTOU"}
+        {attended === true ? "✓ FOI" : attended === false ? "× FALTOU" : "⊗ PASSE"}
       </span>
     </div>
   );
