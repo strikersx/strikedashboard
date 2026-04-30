@@ -119,6 +119,10 @@ export default function LeadsPage() {
         return new Date(+y, month - 1, +d, +h, +min).getTime();
       };
 
+      // Filter out non-actionable leads from all tabs
+      const actionableFoam = (attendedRows as unknown as Customer[]).filter((c) => !isNonActionableLead(c));
+      const actionableFaltaram = noshowFiltered.filter((c) => !isNonActionableLead(c));
+
       const interessadosList = (interessadosRows as unknown as Customer[])
         .filter((c) => !isNonActionableLead(c))
         .map((c) => ({
@@ -129,8 +133,8 @@ export default function LeadsPage() {
         }))
         .sort((a, b) => parseYogoDate(b.createdAt) - parseYogoDate(a.createdAt));
 
-      setForam(attendedRows as unknown as Customer[]);
-      setFaltaram(noshowFiltered);
+      setForam(actionableFoam);
+      setFaltaram(actionableFaltaram);
       setInteressados(interessadosList);
       setLastFetch(new Date());
     } catch (e) {
