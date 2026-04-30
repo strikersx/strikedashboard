@@ -4,16 +4,18 @@ import { useEffect, useCallback, useState } from "react";
 import { useYogoFetch } from "@/hooks/use-yogo";
 import { useDashboard } from "@/app/dashboard/layout";
 import { LoaderIcon } from "@/components/icons";
-import { isNonActionableLead } from "@/lib/utils";
-import { TRIAL_CLASS_PASS_ID } from "@/lib/constants";
+import { isNonActionableLead, fmtDate, getYesterday } from "@/lib/utils";
+import { TRIAL_CLASS_PASS_ID, TRIAL_CLASS_TYPE_ID } from "@/lib/constants";
+import { TrialRow } from "@/components/trial-row";
 
 interface Customer {
-  id?: number;
+  id: number;
   first_name?: string;
   last_name?: string;
   email?: string;
   phone?: string;
   createdAt?: string;
+  attended?: boolean;
 }
 
 interface Lead {
@@ -57,13 +59,21 @@ export default function LeadsPage() {
   const { fetchReport } = useYogoFetch();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [interessados, setInteressados] = useState<Lead[]>([]);
+  const [foram, setForam] = useState<Customer[]>([]);
+  const [faltaram, setFaltaram] = useState<Customer[]>([]);
+  const [tab, setTab] = useState<"foram" | "faltaram" | "interessados">("foram");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const rows = await fetchReport("reports/customers", {
+      const today = fmtDate(new Date());
+      const sixMonthsAgo = fmtDate(new Date(new Date().setMonth(new Date().getMonth() - 6)));
+      const yesterday = getYesterday();
+
+      // Interessados: no membership, no trial pass
+      const interessadosRows = await fetchReport("reports/customers", {
         filters: [
           { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
           { type: "hasNoClassPass", classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveClassPasses: false },
@@ -71,6 +81,31 @@ export default function LeadsPage() {
         returnColumnHeaders: true,
       });
 
+      // Trial people who attended
+      const attendedRows = await fetchReport("reports/customers", {
+        filters: [
+          { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
+          { type: "hasMembershipOrClassPass", membershipTypeId: [], classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveMembershipsOrClassPasses: false },
+          { type: "numberOfSignups", classTypeId: [TRIAL_CLASS_TYPE_ID], membershipTypeId: [], conditionType: "greaterThanOrEquals", conditionAmount: 1, averagePerTimeUnit: "month", startDate: sixMonthsAgo, endDate: today, includeClassSignups: true, onlyCheckedInClassSignups: true, includeWaitingListSignups: false, includeLivestreamSignups: false, includeZeroSignups: false },
+        ],
+        returnColumnHeaders: true,
+      });
+
+      // Trial people who didn't attend
+      const noshowRows = await fetchReport("reports/customers", {
+        filters: [
+          { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
+          { type: "hasMembershipOrClassPass", membershipTypeId: [], classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveMembershipsOrClassPasses: false },
+          { type: "numberOfSignups", classTypeId: [TRIAL_CLASS_TYPE_ID], membershipTypeId: [], conditionType: "greaterThanOrEquals", conditionAmount: 1, averagePerTimeUnit: "month", startDate: sixMonthsAgo, endDate: yesterday, includeClassSignups: true, onlyCheckedInClassSignups: false, includeWaitingListSignups: false, includeLivestreamSignups: false, includeZeroSignups: false },
+        ],
+        returnColumnHeaders: true,
+      });
+
+      // Get attended IDs to filter out from noshow
+      const attendedIds = new Set((attendedRows as unknown as Customer[]).map((c) => c.id));
+      const noshowFiltered = (noshowRows as unknown as Customer[]).filter((c) => !attendedIds.has(c.id));
+
+      // Parse and sort interessados
       const parseYogoDate = (s: string): number => {
         const MONTHS: Record<string, number> = {
           janeiro: 1, fevereiro: 2, março: 3, abril: 4, maio: 5, junho: 6,
@@ -84,7 +119,7 @@ export default function LeadsPage() {
         return new Date(+y, month - 1, +d, +h, +min).getTime();
       };
 
-      const actionable = (rows as unknown as Customer[])
+      const interessadosList = (interessadosRows as unknown as Customer[])
         .filter((c) => !isNonActionableLead(c))
         .map((c) => ({
           name: [c.first_name, c.last_name].filter(Boolean).join(" ") || "Sem nome",
@@ -94,7 +129,9 @@ export default function LeadsPage() {
         }))
         .sort((a, b) => parseYogoDate(b.createdAt) - parseYogoDate(a.createdAt));
 
-      setLeads(actionable);
+      setForam(attendedRows as unknown as Customer[]);
+      setFaltaram(noshowFiltered);
+      setInteressados(interessadosList);
       setLastFetch(new Date());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro desconhecido");
@@ -115,26 +152,140 @@ export default function LeadsPage() {
           Leads
         </h1>
         <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
-          Interessados que se cadastraram
+          Gestão de pessoas no funil
         </p>
       </div>
 
-      <div style={{ padding: "0 18px 6px", display: "flex", alignItems: "baseline", gap: 8 }}>
-        <h3 className="head" style={{ margin: 0, fontSize: 18, color: "#fff" }}>Leads</h3>
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{leads.length}</span>
+      {/* Tabs */}
+      <div style={{ padding: "0 18px 14px", display: "flex", gap: 6 }}>
+        <button
+          onClick={() => setTab("foram")}
+          style={{
+            flex: 1,
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: tab === "foram" ? "#FF2E88" : "#0F0F14",
+            border: `1px solid ${tab === "foram" ? "#FF2E88" : "rgba(255,255,255,0.06)"}`,
+            color: "#fff",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+          className="tap"
+        >
+          Foram à Aula
+        </button>
+        <button
+          onClick={() => setTab("faltaram")}
+          style={{
+            flex: 1,
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: tab === "faltaram" ? "#FFB627" : "#0F0F14",
+            border: `1px solid ${tab === "faltaram" ? "#FFB627" : "rgba(255,255,255,0.06)"}`,
+            color: tab === "faltaram" ? "#0a0a0a" : "#fff",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+          className="tap"
+        >
+          Faltaram
+        </button>
+        <button
+          onClick={() => setTab("interessados")}
+          style={{
+            flex: 1,
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: tab === "interessados" ? "#00E5A0" : "#0F0F14",
+            border: `1px solid ${tab === "interessados" ? "#00E5A0" : "rgba(255,255,255,0.06)"}`,
+            color: tab === "interessados" ? "#0a0a0a" : "#fff",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+          className="tap"
+        >
+          Interessados
+        </button>
       </div>
 
-      <div style={{ padding: "4px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
-        {leads.length === 0 ? (
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", padding: "8px 0" }}>
-            Nenhum lead encontrado.
+      {/* Content */}
+      {tab === "foram" && (
+        <div>
+          <div style={{ padding: "0 18px 6px", display: "flex", alignItems: "baseline", gap: 8 }}>
+            <h3 className="head" style={{ margin: 0, fontSize: 18, color: "#fff" }}>Foram à Aula</h3>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{foram.length}</span>
           </div>
-        ) : (
-          leads.map((l, i) => (
-            <LeadRow key={i} {...l} />
-          ))
-        )}
-      </div>
+          <div style={{ padding: "4px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+            {foram.length === 0 ? (
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", padding: "8px 0" }}>
+                Nenhum registo nesta categoria.
+              </div>
+            ) : (
+              foram.map((t) => (
+                <TrialRow
+                  key={t.id}
+                  name={`${t.first_name ?? ""} ${t.last_name ?? ""}`.trim() || "Sem nome"}
+                  phone={t.phone}
+                  registeredAt={t.createdAt ? String(t.createdAt).replace(/ às \d{2}:\d{2}.*/, "") : undefined}
+                  attended={true}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "faltaram" && (
+        <div>
+          <div style={{ padding: "0 18px 6px", display: "flex", alignItems: "baseline", gap: 8 }}>
+            <h3 className="head" style={{ margin: 0, fontSize: 18, color: "#fff" }}>Faltaram</h3>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{faltaram.length}</span>
+          </div>
+          <div style={{ padding: "4px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+            {faltaram.length === 0 ? (
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", padding: "8px 0" }}>
+                Nenhum registo nesta categoria.
+              </div>
+            ) : (
+              faltaram.map((t) => (
+                <TrialRow
+                  key={t.id}
+                  name={`${t.first_name ?? ""} ${t.last_name ?? ""}`.trim() || "Sem nome"}
+                  phone={t.phone}
+                  registeredAt={t.createdAt ? String(t.createdAt).replace(/ às \d{2}:\d{2}.*/, "") : undefined}
+                  attended={false}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "interessados" && (
+        <div>
+          <div style={{ padding: "0 18px 6px", display: "flex", alignItems: "baseline", gap: 8 }}>
+            <h3 className="head" style={{ margin: 0, fontSize: 18, color: "#fff" }}>Interessados</h3>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{interessados.length}</span>
+          </div>
+          <div style={{ padding: "4px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+            {interessados.length === 0 ? (
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", padding: "8px 0" }}>
+                Nenhum lead encontrado.
+              </div>
+            ) : (
+              interessados.map((l, i) => (
+                <LeadRow key={i} {...l} />
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
