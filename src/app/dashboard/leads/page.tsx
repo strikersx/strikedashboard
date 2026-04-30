@@ -73,11 +73,11 @@ export default function LeadsPage() {
       const sixMonthsAgo = fmtDate(new Date(new Date().setMonth(new Date().getMonth() - 6)));
       const yesterday = getYesterday();
 
-      // Interessados: no membership, no trial pass
+      // Interessados: no membership, no passes of any kind
       const interessadosRows = await fetchReport("reports/customers", {
         filters: [
           { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
-          { type: "hasNoClassPass", classPassTypeId: [TRIAL_CLASS_PASS_ID], onlyActiveClassPasses: false },
+          { type: "hasNoClassPass", classPassTypeId: [], onlyActiveClassPasses: false },
         ],
         returnColumnHeaders: true,
       });
