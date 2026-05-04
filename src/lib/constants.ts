@@ -43,6 +43,7 @@ export const ADMIN_ONLY_ROUTES = [
   "/dashboard/failed",
   "/dashboard/subscribers",
   "/dashboard/pts",
+  "/dashboard/a-receber",
 ] as const;
 
 export const COLOR_MAP = {

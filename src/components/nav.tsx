@@ -26,6 +26,7 @@ const ALL_LINKS = [
   { href: "/dashboard/churn", label: "Churn" },
   { href: "/dashboard/failed", label: "Falhas" },
   { href: "/dashboard/classes", label: "Visitantes" },
+  { href: "/dashboard/a-receber", label: "A Receber" },
 ];
 
 const HomeIconSmall = <svg className="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
