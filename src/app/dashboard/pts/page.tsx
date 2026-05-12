@@ -149,7 +149,9 @@ export default function PTsPage() {
               <span className="text-muted-strong text-sm"><span className="num">{customers.length}</span> cliente{customers.length !== 1 ? "s" : ""} · {eur(customers.length * (PLAN_VALUES[plan] || 0))}/mês</span>
             </div>
             <div className="space-y-2">
-              {customers.map((c) => (
+              {[...customers]
+                .sort((a, b) => (b.paid_until || "").localeCompare(a.paid_until || ""))
+                .map((c) => (
                 <div key={c.id} className="flex items-center justify-between py-2 border-b border-border-subtle last:border-0">
                   <div>
                     <div className="text-sm font-medium text-white">{[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}</div>

@@ -56,11 +56,13 @@ export default function ChurnPage() {
         returnColumnHeaders: true,
       });
 
-      const formatted = (customers as Customer[]).map((c) => ({
-        Nome: [c.first_name, c.last_name].filter(Boolean).join(" ") || "—",
-        Email: c.email || "—",
-        Telefone: c.phone || "—",
-      }));
+      const formatted = (customers as Customer[])
+        .map((c) => ({
+          Nome: [c.first_name, c.last_name].filter(Boolean).join(" ") || "—",
+          Email: c.email || "—",
+          Telefone: c.phone || "—",
+        }))
+        .sort((a, b) => a.Nome.localeCompare(b.Nome, "pt"));
 
       setRows(formatted);
       setLastFetch(new Date());

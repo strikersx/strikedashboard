@@ -91,6 +91,20 @@ export function planColor(plan: string): string {
   return "blue";
 }
 
+export function parseYogoDate(s: string | null | undefined): number {
+  if (!s) return 0;
+  const MONTHS: Record<string, number> = {
+    janeiro: 1, fevereiro: 2, março: 3, abril: 4, maio: 5, junho: 6,
+    julho: 7, agosto: 8, setembro: 9, outubro: 10, novembro: 11, dezembro: 12,
+  };
+  const m = s.match(/(\d+) de (\w+) de (\d{4})(?: às (\d{2}):(\d{2}))?/);
+  if (!m) return 0;
+  const [, d, mon, y, h = "0", min = "0"] = m;
+  const month = MONTHS[mon.toLowerCase()];
+  if (!month) return 0;
+  return new Date(+y, month - 1, +d, +h, +min).getTime();
+}
+
 export function isNonActionableLead(customer: { email?: string }): boolean {
   const email = (customer.email || "").toLowerCase();
   if (email.startsWith("usc-") && email.includes("urbansportsclub.com")) return true;

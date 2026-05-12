@@ -6,7 +6,7 @@ import { useDashboard } from "@/app/dashboard/layout";
 import { LoaderIcon, CheckIcon, XIcon } from "@/components/icons";
 import { Pill } from "@/components/pill";
 import { TRIAL_CLASS_PASS_ID, TRIAL_CLASS_TYPE_ID } from "@/lib/constants";
-import { fmtDate } from "@/lib/utils";
+import { fmtDate, parseYogoDate } from "@/lib/utils";
 
 interface Customer {
   id: number;
@@ -81,8 +81,12 @@ export default function TrialNoConvPage() {
   if (error) return <div className="py-12 text-center text-tone-coral text-sm">Erro: {error}</div>;
   if (rows.length === 0) return <div className="py-12 text-center text-muted">Nenhum trial pendente.</div>;
 
-  const attended = rows.filter((r) => r.attended).sort((a, b) => (b.id || 0) - (a.id || 0));
-  const noShow = rows.filter((r) => !r.attended).sort((a, b) => (b.id || 0) - (a.id || 0));
+  const byRecent = (a: Customer, b: Customer) => {
+    const diff = parseYogoDate(b.createdAt) - parseYogoDate(a.createdAt);
+    return diff !== 0 ? diff : (b.id || 0) - (a.id || 0);
+  };
+  const attended = rows.filter((r) => r.attended).sort(byRecent);
+  const noShow = rows.filter((r) => !r.attended).sort(byRecent);
 
   const Card = ({ c, hot }: { c: Customer; hot?: boolean }) => (
     <div className={`bg-surface rounded-lg p-3 flex items-center justify-between gap-3 border-l-4 ${hot ? "border-tone-magenta" : "border-border-subtle"}`}>

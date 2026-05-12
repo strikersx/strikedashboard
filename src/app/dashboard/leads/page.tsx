@@ -4,7 +4,7 @@ import { useEffect, useCallback, useState } from "react";
 import { useYogoFetch } from "@/hooks/use-yogo";
 import { useDashboard } from "@/app/dashboard/layout";
 import { LoaderIcon } from "@/components/icons";
-import { isNonActionableLead, fmtDate, getYesterday } from "@/lib/utils";
+import { isNonActionableLead, fmtDate, getYesterday, parseYogoDate } from "@/lib/utils";
 import { TRIAL_CLASS_PASS_ID, TRIAL_CLASS_TYPE_ID } from "@/lib/constants";
 import { TrialRow } from "@/components/trial-row";
 
@@ -116,24 +116,18 @@ export default function LeadsPage() {
       const attendedIds = new Set((attendedRows as unknown as Customer[]).map((c) => c.id));
       const noshowFiltered = (noshowRows as unknown as Customer[]).filter((c) => !attendedIds.has(c.id));
 
-      // Parse and sort interessados
-      const parseYogoDate = (s: string): number => {
-        const MONTHS: Record<string, number> = {
-          janeiro: 1, fevereiro: 2, março: 3, abril: 4, maio: 5, junho: 6,
-          julho: 7, agosto: 8, setembro: 9, outubro: 10, novembro: 11, dezembro: 12,
-        };
-        const m = s.match(/(\d+) de (\w+) de (\d{4})(?: às (\d{2}):(\d{2}))?/);
-        if (!m) return 0;
-        const [, d, mon, y, h = "0", min = "0"] = m;
-        const month = MONTHS[mon.toLowerCase()];
-        if (!month) return 0;
-        return new Date(+y, month - 1, +d, +h, +min).getTime();
-      };
-
-      // Filter out non-actionable leads from all tabs
-      const actionableFoam = (attendedRows as unknown as Customer[]).filter((c) => !isNonActionableLead(c));
-      const actionableFaltaram = noshowFiltered.filter((c) => !isNonActionableLead(c));
-      const actionableMarcaram = (marcaramRows as unknown as Customer[]).filter((c) => !isNonActionableLead(c));
+      // Filter out non-actionable leads from all tabs, then sort by createdAt DESC
+      const byCreatedAtDesc = (a: Customer, b: Customer) =>
+        parseYogoDate(b.createdAt) - parseYogoDate(a.createdAt);
+      const actionableFoam = (attendedRows as unknown as Customer[])
+        .filter((c) => !isNonActionableLead(c))
+        .sort(byCreatedAtDesc);
+      const actionableFaltaram = noshowFiltered
+        .filter((c) => !isNonActionableLead(c))
+        .sort(byCreatedAtDesc);
+      const actionableMarcaram = (marcaramRows as unknown as Customer[])
+        .filter((c) => !isNonActionableLead(c))
+        .sort(byCreatedAtDesc);
 
       const interessadosList = (interessadosRows as unknown as Customer[])
         .filter((c) => !isNonActionableLead(c))

@@ -129,10 +129,11 @@ export default function SubscribersPage() {
     })
   );
 
-  const filtered =
+  const filtered = (
     activeFilter === "all" ? allCustomers :
     activeFilter === "failed" ? allCustomers.filter((c) => c.status === "failed" || c.status === "expired") :
-    allCustomers.filter((c) => c.status === activeFilter);
+    allCustomers.filter((c) => c.status === activeFilter)
+  ).slice().sort((a, b) => (b.paidUntil || "").localeCompare(a.paidUntil || ""));
 
   const filters = [
     { id: "all" as const,    label: "Todos",   count: allCustomers.length },

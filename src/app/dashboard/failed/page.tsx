@@ -67,7 +67,9 @@ export default function FailedPage() {
         <div className="py-12 text-center text-muted">Nenhum pagamento falhado encontrado</div>
       ) : (
         <div className="space-y-2">
-          {memberships.map((m) => {
+          {[...memberships]
+            .sort((a, b) => (b.paid_until || "").localeCompare(a.paid_until || ""))
+            .map((m) => {
             const name = m.user_full_name || [m.user_first_name, m.user_last_name].filter(Boolean).join(" ") || `Membership #${m.id}`;
             return (
               <div key={m.id} className="bg-surface rounded-lg p-4 flex items-center justify-between gap-4">
