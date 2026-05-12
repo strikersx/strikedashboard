@@ -6,6 +6,12 @@ import { useDashboard } from "@/app/dashboard/layout";
 import { LoaderIcon } from "@/components/icons";
 import { TRIAL_CLASS_TYPE_ID } from "@/lib/constants";
 
+interface Signup {
+  id: number;
+  cancelled_at?: number;
+  user?: { first_name?: string; last_name?: string; phone?: string };
+}
+
 interface ClassItem {
   id: number;
   date: string;
@@ -14,6 +20,45 @@ interface ClassItem {
   signup_count?: number;
   class_type?: { name?: string };
   teachers?: { first_name?: string; last_name?: string }[];
+  signups?: Signup[];
+}
+
+function ClassCard({ c }: { c: ClassItem }) {
+  const activeSignups = (c.signups ?? []).filter((s) => !s.cancelled_at);
+  return (
+    <div style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "10px 12px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>
+            {c.date} · {c.start_time?.slice(0, 5)}
+          </div>
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
+            {c.class_type?.name ?? "Experimental"}
+            {c.teachers?.[0] && ` · ${c.teachers[0].first_name} ${c.teachers[0].last_name}`}
+          </div>
+        </div>
+        <span className="num" style={{ fontSize: 22, color: "#00E5A0" }}>{c.signup_count}</span>
+      </div>
+      {activeSignups.length > 0 && (
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 4 }}>
+          {activeSignups.map((s) => {
+            const name = `${s.user?.first_name ?? ""} ${s.user?.last_name ?? ""}`.trim() || "Sem nome";
+            const phone = s.user?.phone?.trim();
+            return (
+              <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 12, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+                {phone ? (
+                  <a href={`tel:${phone}`} style={{ fontSize: 11.5, color: "#A6E22E", fontWeight: 600, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{phone}</a>
+                ) : (
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>sem telemóvel</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function TrialsPage() {
@@ -55,8 +100,8 @@ export default function TrialsPage() {
 
       // Fetch both weeks
       const [currentWeekData, nextWeekData] = await Promise.all([
-        fetchYogo(`classes?startDate=${formatDate(today)}&endDate=${formatDate(endOfCurrentWeek)}&class_type[]=${TRIAL_CLASS_TYPE_ID}&populate[]=class_type&populate[]=teachers&populate[]=signup_count&sort[]=date ASC&sort[]=start_time ASC`),
-        fetchYogo(`classes?startDate=${formatDate(startOfNextWeek)}&endDate=${formatDate(endOfNextWeek)}&class_type[]=${TRIAL_CLASS_TYPE_ID}&populate[]=class_type&populate[]=teachers&populate[]=signup_count&sort[]=date ASC&sort[]=start_time ASC`),
+        fetchYogo(`classes?startDate=${formatDate(today)}&endDate=${formatDate(endOfCurrentWeek)}&class_type[]=${TRIAL_CLASS_TYPE_ID}&populate[]=class_type&populate[]=teachers&populate[]=signup_count&populate[]=signups&populate[]=signups.user&sort[]=date ASC&sort[]=start_time ASC`),
+        fetchYogo(`classes?startDate=${formatDate(startOfNextWeek)}&endDate=${formatDate(endOfNextWeek)}&class_type[]=${TRIAL_CLASS_TYPE_ID}&populate[]=class_type&populate[]=teachers&populate[]=signup_count&populate[]=signups&populate[]=signups.user&sort[]=date ASC&sort[]=start_time ASC`),
       ]);
 
       const parseClasses = (data: unknown): ClassItem[] => {
@@ -104,23 +149,7 @@ export default function TrialsPage() {
           </div>
           <div style={{ padding: "0 18px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
             {currentWeekClasses.map((c) => (
-              <div
-                key={c.id}
-                style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "10px 12px" }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>
-                      {c.date} · {c.start_time?.slice(0, 5)}
-                    </div>
-                    <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
-                      {c.class_type?.name ?? "Experimental"}
-                      {c.teachers?.[0] && ` · ${c.teachers[0].first_name} ${c.teachers[0].last_name}`}
-                    </div>
-                  </div>
-                  <span className="num" style={{ fontSize: 22, color: "#00E5A0" }}>{c.signup_count}</span>
-                </div>
-              </div>
+              <ClassCard key={c.id} c={c} />
             ))}
           </div>
         </div>
@@ -136,23 +165,7 @@ export default function TrialsPage() {
           </div>
           <div style={{ padding: "0 18px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
             {nextWeekClasses.map((c) => (
-              <div
-                key={c.id}
-                style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "10px 12px" }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>
-                      {c.date} · {c.start_time?.slice(0, 5)}
-                    </div>
-                    <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
-                      {c.class_type?.name ?? "Experimental"}
-                      {c.teachers?.[0] && ` · ${c.teachers[0].first_name} ${c.teachers[0].last_name}`}
-                    </div>
-                  </div>
-                  <span className="num" style={{ fontSize: 22, color: "#00E5A0" }}>{c.signup_count}</span>
-                </div>
-              </div>
+              <ClassCard key={c.id} c={c} />
             ))}
           </div>
         </div>
