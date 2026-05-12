@@ -9,8 +9,11 @@ import { PLAN_VALUES } from "@/lib/constants";
 
 interface Membership {
   user_id?: number;
+  user_full_name?: string;
   membership_type_name?: string;
   paid_until?: string;
+  start_date?: string;
+  created_at?: string;
   status?: string;
 }
 
@@ -33,9 +36,14 @@ function getFirstWeekday(year: number, month: number): number {
   return d === 0 ? 6 : d - 1;
 }
 
-function buildDayMap(memberships: Membership[], year: number, month: number): Map<string, DayEntry> {
+function buildDayMap(memberships: Membership[], year: number, month: number, todayStr: string): Map<string, DayEntry> {
   const map = new Map<string, DayEntry>();
   const daysInMonth = getDaysInMonth(year, month);
+  const selectedYM = year * 12 + month;
+  const todayParts = todayStr.split("-");
+  const todayYM = parseInt(todayParts[0]) * 12 + (parseInt(todayParts[1]) - 1);
+  // "active this month" threshold: paid_until >= first day of current month
+  const currentMonthStart = `${todayParts[0]}-${todayParts[1]}-01`;
 
   for (const m of memberships) {
     if (!m.paid_until) continue;
@@ -47,6 +55,7 @@ function buildDayMap(memberships: Membership[], year: number, month: number): Ma
     const baseYear = parseInt(parts[0]);
     const baseMonth = parseInt(parts[1]) - 1;
     const baseDay = parseInt(parts[2]);
+    const baseYM = baseYear * 12 + baseMonth;
 
     if (isPTPlan(plan)) {
       // PT passes: only show on their actual paid_until date
@@ -55,11 +64,14 @@ function buildDayMap(memberships: Membership[], year: number, month: number): Ma
         map.set(m.paid_until, { ...entry, pt: entry.pt + value });
       }
     } else {
-      // Recurring: project the renewal day to the selected month
-      // Members with baseYM < selectedYM have lapsed — skip them
-      const baseYM = baseYear * 12 + baseMonth;
-      const selectedYM = year * 12 + month;
-      if (baseYM < selectedYM) continue;
+      // Recurring: project renewal day to selected month
+      // Past/current months: show members whose paid_until was in/after that month
+      // Future months: show all members active in the current month (same base as today's view)
+      const include = selectedYM <= todayYM
+        ? baseYM >= selectedYM
+        : m.paid_until >= currentMonthStart;
+
+      if (!include) continue;
 
       const projectedDay = Math.min(baseDay, daysInMonth);
       const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(projectedDay).padStart(2, "0")}`;
@@ -116,7 +128,7 @@ export default function AReceberPage() {
     selectedYear === today.getFullYear() && selectedMonth === today.getMonth();
   const todayStr = today.toISOString().slice(0, 10);
 
-  const dayMap = buildDayMap(memberships, selectedYear, selectedMonth);
+  const dayMap = buildDayMap(memberships, selectedYear, selectedMonth, todayStr);
 
   let totalRecurring = 0;
   let totalPT = 0;
@@ -241,6 +253,109 @@ export default function AReceberPage() {
           ))}
         </div>
       </div>
+
+      {/* Weekly summary table */}
+      {(() => {
+        const numWeeks = Math.ceil((firstWeekday + daysInMonth) / 7);
+        const weeks = Array.from({ length: numWeeks }, (_, w) => {
+          let recurring = 0;
+          let pt = 0;
+          for (let d = 1; d <= daysInMonth; d++) {
+            if (Math.ceil((d + firstWeekday) / 7) !== w + 1) continue;
+            const dateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+            const entry = dayMap.get(dateStr);
+            if (entry) { recurring += entry.recurring; pt += entry.pt; }
+          }
+          return { week: w + 1, recurring, pt };
+        });
+
+        return (
+          <div style={{ padding: "16px 18px 0" }}>
+            <div className="head" style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.06em", marginBottom: 8 }}>
+              RESUMO POR SEMANA
+            </div>
+            <div style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
+              {/* Header */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "8px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                {["SEMANA", "RECORRENTES", "PTs", "TOTAL"].map((h) => (
+                  <div key={h} style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em" }}>{h}</div>
+                ))}
+              </div>
+              {/* Rows */}
+              {weeks.map(({ week, recurring, pt }) => (
+                <div key={week} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Sem. {week}</div>
+                  <div style={{ fontSize: 12, color: recurring > 0 ? "#00E5A0" : "rgba(255,255,255,0.2)", fontWeight: 700 }}>{recurring > 0 ? eur(recurring) : "—"}</div>
+                  <div style={{ fontSize: 12, color: pt > 0 ? "#A78BFA" : "rgba(255,255,255,0.2)", fontWeight: 700 }}>{pt > 0 ? eur(pt) : "—"}</div>
+                  <div style={{ fontSize: 12, color: "#fff", fontWeight: 700 }}>{recurring + pt > 0 ? eur(recurring + pt) : "—"}</div>
+                </div>
+              ))}
+              {/* Total row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "10px 14px", background: "rgba(255,255,255,0.03)" }}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 700, letterSpacing: "0.04em" }}>TOTAL</div>
+                <div style={{ fontSize: 12, color: "#00E5A0", fontWeight: 800 }}>{eur(totalRecurring)}</div>
+                <div style={{ fontSize: 12, color: "#A78BFA", fontWeight: 800 }}>{eur(totalPT)}</div>
+                <div style={{ fontSize: 13, color: "#fff", fontWeight: 800 }}>{eur(totalRecurring + totalPT)}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Recent renewals */}
+      {(() => {
+        const recent = memberships
+          .filter((m) => m.user_full_name && (m.start_date || m.created_at))
+          .map((m) => {
+            const plan = getPlan(m.membership_type_name);
+            const startDate = m.start_date ?? m.created_at ?? "";
+            return { name: m.user_full_name!, startDate, paid_until: m.paid_until ?? "", plan, value: PLAN_VALUES[plan] ?? 0 };
+          })
+          .filter((m) => m.value > 0)
+          .sort((a, b) => b.startDate.localeCompare(a.startDate))
+          .slice(0, 15);
+
+        if (recent.length === 0) return null;
+
+        return (
+          <div style={{ padding: "16px 18px 0" }}>
+            <div className="head" style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.06em", marginBottom: 8 }}>
+              ÚLTIMAS SUBSCRIÇÕES
+            </div>
+            <div style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
+              {recent.map((m, i) => {
+                const isPT = isPTPlan(m.plan);
+                return (
+                  <div
+                    key={i}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderBottom: i < recent.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}
+                  >
+                    {/* Avatar */}
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: isPT ? "rgba(167,139,250,0.12)" : "rgba(0,229,160,0.1)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: isPT ? "#A78BFA" : "#00E5A0" }}>
+                        {m.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+                      </span>
+                    </div>
+                    {/* Name + plan */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{m.plan}</div>
+                    </div>
+                    {/* Date */}
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", flexShrink: 0, textAlign: "right" }}>
+                      {m.startDate}
+                    </div>
+                    {/* Value */}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: isPT ? "#A78BFA" : "#00E5A0", flexShrink: 0, minWidth: 44, textAlign: "right" }}>
+                      {eur(m.value)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

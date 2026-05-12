@@ -30,7 +30,13 @@
       "Bash(node -e ' *)",
       "Bash(bash /Users/ricore/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir /Users/ricore/Documents/Project/strikehousedashboard)",
       "Bash(vercel inspect *)",
-      "Bash(vercel logs *)"
+      "Bash(vercel logs *)",
+      "Bash(git -C /Users/ricore/Documents/Project/strikehousedashboard status --porcelain)",
+      "Bash(vercel)",
+      "Bash(git -C /Users/ricore/Documents/Project/strikehousedashboard rev-parse --short HEAD)",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('/tmp/active_users.json'\\)\\); print\\(len\\(d['ids']\\)\\)\")",
+      "Bash(echo \"Saved. Count: $\\(python3 -c \"import json; d=json.load\\(open\\('/tmp/active_users.json'\\)\\); print\\(len\\(d['ids']\\)\\)\"\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\),indent=2\\)\\)\")"
     ],
     "additionalDirectories": [
       "/Users/ricore/Documents/Project/strikehousedashboard/src/app/api/yogo"

@@ -18,7 +18,7 @@ import {
   getDashboardRange, getLast30Days, fmtDate, getYesterday,
   getPlan, isPTPlan, isNonActionableLead,
 } from "@/lib/utils";
-import { ALL_SUB_IDS, RECURRING_SUB_IDS, TRIAL_CLASS_TYPE_ID, TRIAL_CLASS_PASS_ID } from "@/lib/constants";
+import { ALL_SUB_IDS, RECURRING_SUB_IDS, TRIAL_CLASS_TYPE_ID, TRIAL_CLASS_PASS_ID, PLAN_VALUES } from "@/lib/constants";
 
 type Rec = Record<string, unknown>;
 
@@ -58,6 +58,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [subs, setSubs] = useState<Rec[]>([]);
+  const [memberships, setMemberships] = useState<Rec[]>([]);
   const [churn, setChurn] = useState<Rec[]>([]);
   const [failed, setFailed] = useState<Rec[]>([]);
   const [revenueItems, setRevenueItems] = useState<Rec[]>([]);
@@ -108,6 +109,7 @@ export default function DashboardPage() {
 
         const adminPromises = isAdmin ? {
           subs: fetchReport("reports/customers", { filters: [{ type: "hasMembershipOrClassPass", membershipTypeId: ALL_SUB_IDS, classPassTypeId: [], onlyActiveMembershipsOrClassPasses: false }], returnColumnHeaders: true }),
+          memberships: fetchReport("reports/memberships-list", {}),
           churn: fetchReport("reports/customers", { filters: [{ type: "numberOfSignups", classTypeId: [], membershipTypeId: [], conditionType: "lessThanOrEquals", conditionAmount: 0, averagePerTimeUnit: "month", startDate: last30Start, endDate: last30End, includeClassSignups: true, onlyCheckedInClassSignups: false, includeWaitingListSignups: false, includeLivestreamSignups: false, includeZeroSignups: false }, { type: "hasMembershipOrClassPass", membershipTypeId: RECURRING_SUB_IDS, classPassTypeId: [], onlyActiveMembershipsOrClassPasses: true }], returnColumnHeaders: true }),
           failed: fetchReport("reports/memberships-list", { status: ["ended"], is_payment_failed: true, has_pending_no_show_fees: false, ended_because: ["payment_failed"] }),
           revenue: fetchGraphQL(REVENUE_QUERY, { input: { periodType: "year", startDate: `${new Date().getFullYear()}-01-01`, endDate: `${new Date().getFullYear()}-12-31`, dateFilterField: "paid", vatFilter: null, canHandleSeparateRefunds: true } }),
@@ -130,6 +132,7 @@ export default function DashboardPage() {
 
         if (isAdmin) {
           setSubs(data.subs as Rec[]);
+          setMemberships(data.memberships as Rec[]);
           setChurn(data.churn as Rec[]);
           setFailed(data.failed as Rec[]);
           const revData = data.revenue as { data?: { revenueReport?: Rec | Rec[] } };
@@ -280,6 +283,47 @@ export default function DashboardPage() {
           <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Trial" value={totalTrialsScheduled} sub={`Esta semana ${newTrialWeek} · Próxima ${nextWeekTrials}`} tone="#3D7DFF" trendDir={totalTrialsScheduled > 0 ? "up" : "flat"} trendValue={`${totalTrialsScheduled}`} onClick={() => router.push("/dashboard/trials")} />
           <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Visitantes" value={visitorsToday} sub={`Semana ${visitorsWeek} · Mês ${visitorsMonth}`} tone="#00E5A0" trendDir={visitorsToday > 0 ? "up" : "flat"} trendValue={`${visitorsMonth} mês`} onClick={() => router.push("/dashboard/classes")} />
         </div>
+
+        {/* ── Últimas subscrições ── */}
+        {(() => {
+          const recentSubs = (memberships as Rec[])
+            .filter((m) => m.user_full_name && (m.start_date || m.created_at))
+            .map((m) => {
+              const plan = getPlan(String(m.membership_type_name || ""));
+              const startDate = String(m.start_date || m.created_at || "");
+              return { name: String(m.user_full_name), startDate, plan, value: PLAN_VALUES[plan] ?? 0 };
+            })
+            .filter((m) => m.value > 0 && !isPTPlan(m.plan))
+            .sort((a, b) => b.startDate.localeCompare(a.startDate))
+            .slice(0, 5);
+
+          if (recentSubs.length === 0) return null;
+
+          return (
+            <>
+              <SectionHead title="Últimas Subscrições" action="a receber" onAction={() => router.push("/dashboard/a-receber")} />
+              <div style={{ padding: "0 18px" }}>
+                <div style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
+                  {recentSubs.map((m, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderBottom: i < recentSubs.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(0,229,160,0.1)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: "#00E5A0" }}>
+                          {m.name.split(" ").map((w: string) => w[0]).slice(0, 2).join("")}
+                        </span>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{m.plan}</div>
+                      </div>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", flexShrink: 0, textAlign: "right" }}>{m.startDate}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#00E5A0", flexShrink: 0, minWidth: 44, textAlign: "right" }}>{eur(m.value)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          );
+        })()}
 
         {/* ── Action rows ── */}
         <SectionHead title="Acções recomendadas" count={actions.length} />

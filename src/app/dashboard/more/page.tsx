@@ -20,6 +20,7 @@ const SECTIONS: Section[] = [
   { id: "failed",   label: "Pagamentos falhados",  sub: "Cartões recusados ou expirados",     icon: "💳", href: "/dashboard/failed" },
   { id: "classes",  label: "Visitantes",           sub: "USC, ClassPass, Bruce App",          icon: "✨", href: "/dashboard/classes" },
   { id: "leads",    label: "Leads",                sub: "Interessados que se cadastraram",    icon: "🎯", href: "/dashboard/leads" },
+  { id: "receber",  label: "A Receber",            sub: "Calendário de vencimentos mensais",  icon: "📅", href: "/dashboard/a-receber" },
 ];
 
 export default function MorePage() {
