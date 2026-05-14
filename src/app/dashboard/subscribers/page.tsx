@@ -26,11 +26,12 @@ interface Membership {
   membership_type_id?: number;
   paid_until?: string;
   status?: string;
+  next_payment?: { date?: string; amount?: number } | null;
 }
 
 interface PlanGroup {
   plan: string;
-  customers: (Customer & { paid_until?: string })[];
+  customers: (Customer & { paid_until?: string; next_payment_date?: string })[];
 }
 
 export default function SubscribersPage() {
@@ -65,23 +66,26 @@ export default function SubscribersPage() {
       const customers = customersRaw as unknown as Customer[];
       const memberships = membershipsRaw as unknown as Membership[];
 
-      // Build lookup: user_id -> best paid_until
-      const paidUntilByUser: Record<number, string> = {};
+      // Build lookup: user_id -> { best paid_until, next_payment date on that membership }
+      const infoByUser: Record<number, { paid_until: string; next_payment_date?: string }> = {};
       for (const m of memberships) {
-        if (m.user_id && m.paid_until) {
-          const existing = paidUntilByUser[m.user_id];
-          if (!existing || m.paid_until > existing) {
-            paidUntilByUser[m.user_id] = m.paid_until;
-          }
+        if (!m.user_id || !m.paid_until) continue;
+        const existing = infoByUser[m.user_id];
+        if (!existing || m.paid_until > existing.paid_until) {
+          infoByUser[m.user_id] = {
+            paid_until: m.paid_until,
+            next_payment_date: m.next_payment?.date,
+          };
         }
       }
 
       // Group customers by plan
-      const grouped: Record<string, (Customer & { paid_until?: string })[]> = {};
+      const grouped: Record<string, (Customer & { paid_until?: string; next_payment_date?: string })[]> = {};
       for (const c of customers) {
         const plan = getPlan(c.has_membership_membership_description);
         if (!grouped[plan]) grouped[plan] = [];
-        grouped[plan].push({ ...c, paid_until: paidUntilByUser[c.id] });
+        const info = infoByUser[c.id];
+        grouped[plan].push({ ...c, paid_until: info?.paid_until, next_payment_date: info?.next_payment_date });
       }
 
       const ordered: PlanGroup[] = PLAN_ORDER
@@ -113,7 +117,7 @@ export default function SubscribersPage() {
   if (loading) return <div className="py-20 flex justify-center"><LoaderIcon /></div>;
   if (error) return <div className="py-20 text-center text-tone-coral text-sm">Erro: {error}</div>;
 
-  // Derive flat list with status from paid_until
+  // Derive flat list with status from paid_until + next_payment
   const today = new Date().toISOString().slice(0, 10);
   type CustomerRow = Customer & { paid_until?: string; plan: string; daysLeft: number; status: SubStatus; paidUntil: string };
   const allCustomers: CustomerRow[] = planGroups.flatMap((g) =>
@@ -122,9 +126,11 @@ export default function SubscribersPage() {
       const daysLeft = paidUntil
         ? Math.round((new Date(paidUntil).getTime() - Date.now()) / 86400000)
         : 0;
+      // A scheduled next_payment means the subscription will auto-renew — not at risk.
+      const willAutoRenew = !!c.next_payment_date && c.next_payment_date >= today;
       let status: SubStatus = "active";
       if (!paidUntil || paidUntil < today) status = "expired";
-      else if (daysLeft <= 7) status = "risk";
+      else if (daysLeft <= 7 && !willAutoRenew) status = "risk";
       return { ...c, plan: g.plan, daysLeft, status, paidUntil };
     })
   );
