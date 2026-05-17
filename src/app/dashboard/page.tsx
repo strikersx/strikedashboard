@@ -11,7 +11,7 @@ import { Sparkline } from "@/components/sparkline";
 import { TrendChip } from "@/components/trend-chip";
 import {
   EuroIcon, UsersIcon, TrendIcon, CardIcon,
-  ZapIcon, UserPlusIcon, TargetIcon, LoaderIcon,
+  ZapIcon, UserPlusIcon, TargetIcon, LoaderIcon, ClockIcon,
 } from "@/components/icons";
 import {
   eur, isToday, isThisWeek, isThisMonth,
@@ -164,6 +164,10 @@ export default function DashboardPage() {
   const avgMonth = monthsElapsed > 0 ? Math.round(revenueTotal / monthsElapsed) : 0;
   const sparkData = buildSparkData(revenueItems);
 
+  const pausedCount = memberships.filter((m) => /^Paus/i.test(String(m.status_text || ""))).length;
+  const cancelledRunningCount = memberships.filter((m) => m.status === "cancelled_running").length;
+  const pausedOrCancelledCount = pausedCount + cancelledRunningCount;
+
   const trialIds = new Set(trialNoConv.map((t) => String(t.id || t.customer_id)));
   const leadsActionable = leads
     .filter((l) => !trialIds.has(String(l.id || l.customer_id)))
@@ -276,6 +280,7 @@ export default function DashboardPage() {
           <KPICard icon={<UsersIcon className="w-3.5 h-3.5" />} label="Subscrições activas" value={subs.length} sub={`${groupSubsCount} grupo · ${ptCount} PT`} tone="#3D7DFF" trendDir="up" trendValue={`+${subs.length}`} onClick={() => router.push("/dashboard/subscribers")} />
           <KPICard icon={<TrendIcon className="w-3.5 h-3.5" />} label="Churn (30d)" value={churn.length} sub={`${churnPct}% — sem aulas em 30d`} tone="#FFB627" trendDir={churnPct > 10 ? "down" : "flat"} trendValue={`${churnPct}%`} onClick={() => router.push("/dashboard/churn")} />
           <KPICard icon={<CardIcon className="w-3.5 h-3.5" />} label="Pagamentos falhados" value={failed.length} sub="Memberships ended" tone="#FF3D2E" trendDir={failed.length > 0 ? "down" : "flat"} trendValue={`${failed.length}`} onClick={() => router.push("/dashboard/failed")} />
+          <KPICard icon={<ClockIcon className="w-3.5 h-3.5" />} label="Pausas & Canceladas" value={pausedOrCancelledCount} sub={`${pausedCount} pausadas · ${cancelledRunningCount} a terminar`} tone="#C7CCD6" trendDir="flat" trendValue={`${pausedOrCancelledCount}`} onClick={() => router.push("/dashboard/pausas")} />
           <KPICard icon={<UserPlusIcon className="w-3.5 h-3.5" />} label="Total de Leads" value={leadsActionable.length + trialEnriched.length} sub={`Leads Hot ${trialAttendedCount} · Warm ${trialNoShowCount} · Cold ${leadsActionable.length}`} tone="#A6E22E" trendDir="up" trendValue={`+${leadsActionable.length + trialEnriched.length}`} onClick={() => router.push("/dashboard/leads")} />
           <KPICard icon={<TargetIcon className="w-3.5 h-3.5" />} label="Leads Hot" value={trialAttendedCount} sub="Foram à aula — fechar venda" tone="#FF2E88" trendDir="up" trendValue={`+${trialAttendedCount}`} onClick={() => router.push("/dashboard/leads")} />
           <KPICard icon={<ZapIcon className="w-3.5 h-3.5" />} label="Leads Warm" value={trialNoShowCount} sub="Faltaram — reagendar" tone="#FFB627" trendDir="flat" trendValue={`${trialNoShowCount}`} onClick={() => router.push("/dashboard/leads")} />
