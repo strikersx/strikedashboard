@@ -26,12 +26,13 @@ interface Membership {
   membership_type_id?: number;
   paid_until?: string;
   status?: string;
+  status_text?: string;
   next_payment?: { date?: string; amount?: number } | null;
 }
 
 interface PlanGroup {
   plan: string;
-  customers: (Customer & { paid_until?: string; next_payment_date?: string })[];
+  customers: (Customer & { paid_until?: string; next_payment_date?: string; status_text?: string })[];
 }
 
 export default function SubscribersPage() {
@@ -42,7 +43,7 @@ export default function SubscribersPage() {
   const [planGroups, setPlanGroups] = useState<PlanGroup[]>([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
-  const [activeFilter, setActiveFilter] = useState<"all" | "active" | "risk" | "failed">("all");
+  const [activeFilter, setActiveFilter] = useState<"all" | "active" | "risk" | "failed" | "paused">("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,8 +67,8 @@ export default function SubscribersPage() {
       const customers = customersRaw as unknown as Customer[];
       const memberships = membershipsRaw as unknown as Membership[];
 
-      // Build lookup: user_id -> { best paid_until, next_payment date on that membership }
-      const infoByUser: Record<number, { paid_until: string; next_payment_date?: string }> = {};
+      // Build lookup: user_id -> { best paid_until, next_payment date, status_text on that membership }
+      const infoByUser: Record<number, { paid_until: string; next_payment_date?: string; status_text?: string }> = {};
       for (const m of memberships) {
         if (!m.user_id || !m.paid_until) continue;
         const existing = infoByUser[m.user_id];
@@ -75,17 +76,23 @@ export default function SubscribersPage() {
           infoByUser[m.user_id] = {
             paid_until: m.paid_until,
             next_payment_date: m.next_payment?.date,
+            status_text: m.status_text,
           };
         }
       }
 
       // Group customers by plan
-      const grouped: Record<string, (Customer & { paid_until?: string; next_payment_date?: string })[]> = {};
+      const grouped: Record<string, (Customer & { paid_until?: string; next_payment_date?: string; status_text?: string })[]> = {};
       for (const c of customers) {
         const plan = getPlan(c.has_membership_membership_description);
         if (!grouped[plan]) grouped[plan] = [];
         const info = infoByUser[c.id];
-        grouped[plan].push({ ...c, paid_until: info?.paid_until, next_payment_date: info?.next_payment_date });
+        grouped[plan].push({
+          ...c,
+          paid_until: info?.paid_until,
+          next_payment_date: info?.next_payment_date,
+          status_text: info?.status_text,
+        });
       }
 
       const ordered: PlanGroup[] = PLAN_ORDER
@@ -117,7 +124,7 @@ export default function SubscribersPage() {
   if (loading) return <div className="py-20 flex justify-center"><LoaderIcon /></div>;
   if (error) return <div className="py-20 text-center text-tone-coral text-sm">Erro: {error}</div>;
 
-  // Derive flat list with status from paid_until + next_payment
+  // Derive flat list with status from paid_until + next_payment + status_text
   const today = new Date().toISOString().slice(0, 10);
   type CustomerRow = Customer & { paid_until?: string; plan: string; daysLeft: number; status: SubStatus; paidUntil: string };
   const allCustomers: CustomerRow[] = planGroups.flatMap((g) =>
@@ -126,10 +133,13 @@ export default function SubscribersPage() {
       const daysLeft = paidUntil
         ? Math.round((new Date(paidUntil).getTime() - Date.now()) / 86400000)
         : 0;
+      // Yogo keeps status:"active" while signalling pause/scheduled-pause via status_text.
+      const isPaused = /^Paus/i.test(c.status_text ?? "");
       // A scheduled next_payment means the subscription will auto-renew — not at risk.
       const willAutoRenew = !!c.next_payment_date && c.next_payment_date >= today;
       let status: SubStatus = "active";
-      if (!paidUntil || paidUntil < today) status = "expired";
+      if (isPaused) status = "paused";
+      else if (!paidUntil || paidUntil < today) status = "expired";
       else if (daysLeft <= 7 && !willAutoRenew) status = "risk";
       return { ...c, plan: g.plan, daysLeft, status, paidUntil };
     })
@@ -145,6 +155,7 @@ export default function SubscribersPage() {
     { id: "all" as const,    label: "Todos",   count: allCustomers.length },
     { id: "active" as const, label: "Activos", count: allCustomers.filter((c) => c.status === "active").length },
     { id: "risk" as const,   label: "Risco",   count: allCustomers.filter((c) => c.status === "risk").length },
+    { id: "paused" as const, label: "Pausa",   count: allCustomers.filter((c) => c.status === "paused").length },
     { id: "failed" as const, label: "Falhas",  count: allCustomers.filter((c) => c.status === "failed" || c.status === "expired").length },
   ];
 

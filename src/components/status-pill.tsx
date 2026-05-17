@@ -1,7 +1,7 @@
 // src/components/status-pill.tsx
 "use client";
 
-export type SubStatus = "active" | "risk" | "failed" | "expired";
+export type SubStatus = "active" | "risk" | "failed" | "expired" | "paused";
 
 interface StatusPillProps {
   status: SubStatus;
@@ -13,6 +13,7 @@ const CFG: Record<SubStatus, { bg: string; fg: string; label: (d?: number) => st
   risk:    { bg: "rgba(255,182,39,0.14)", fg: "#FFB627", label: (d) => d != null ? `risco · ${d}d` : "risco" },
   failed:  { bg: "rgba(255,61,46,0.14)",  fg: "#FF6B5E", label: (d) => d != null ? `falha · ${Math.abs(d)}d` : "falha" },
   expired: { bg: "rgba(255,61,46,0.18)",  fg: "#FF6B5E", label: (d) => d != null ? `venceu há ${Math.abs(d)}d` : "vencido" },
+  paused:  { bg: "rgba(155,162,177,0.18)", fg: "#C7CCD6", label: () => "pausada" },
 };
 
 export function StatusPill({ status, daysUntilRenewal }: StatusPillProps) {
