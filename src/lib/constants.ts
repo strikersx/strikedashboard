@@ -1,5 +1,21 @@
-export const ALL_SUB_IDS = [6021, 6107, 6020, 6178, 6361, 6293, 6294, 6153];
-export const RECURRING_SUB_IDS = [6021, 6107, 6020, 6153];
+// Yogo membership_type_id list. Verify against /membership-types?populate[]=membershipCount
+// when a customer seems invisible — Yogo lets the studio archive old types and create new
+// ones (e.g. price refreshes), and this hardcoded list goes stale.
+// Last verified 2026-05-17. Includes legacy IDs (6021/6107/6020 etc.) AND the refreshed
+// 2026-05 plans (6519/6520/6521) with new pricing.
+export const ALL_SUB_IDS = [
+  6020, 6021, 6107,           // legacy 8 / 12 / 24 sessões/mês
+  6519, 6520, 6521,           // 2026-05 refreshed 24 / 8 / 12 sessões/mês
+  6153,                       // Striking Trimestral
+  6178,                       // PT (Marcelo) 3x/sem
+  6294, 6361,                 // PT 8 Passes, PT 12 Passes
+  6293,                       // PT 4 Passes (archived — kept for historical rows)
+];
+export const RECURRING_SUB_IDS = [
+  6020, 6021, 6107,           // legacy monthly recurring
+  6519, 6520, 6521,           // refreshed monthly recurring
+  6153,                       // Striking Trimestral (quarterly auto-renew)
+];
 export const TRIAL_CLASS_TYPE_ID = 21792;
 export const TRIAL_CLASS_PASS_ID = 14172;
 
