@@ -47,6 +47,7 @@ Cruzar contactos WhatsApp com clientes Yogo para identificar quem falta no siste
 - UI com tabs, seleccao multipla, export CSV, copiar telefones
 
 **Prerequisito:** Migrar SQLite para Turso (Vercel read-only)
+- Decisao 2026-05-17: instalar Turso via **Vercel Marketplace** (auto-provision de env vars). Adiado ate ao arranque deste sprint — MVP nao escreve em DB.
 
 ---
 
@@ -88,26 +89,35 @@ Auto-refresh do token Yogo antes de expirar.
 
 ---
 
-## Sprint 4 — WhatsApp Cloud API
+## Sprint 4 — WhatsApp Cloud API (Bot de Reservas)
 
-Integrar WhatsApp Business API para messaging directo.
+Redesenhado 2026-05-17 -- abordagem **pull-based** (aluno inicia conversa, bot responde). Spike Yogo signup API confirmado: POST/DELETE `/class-signups` funcionam. Spec completa em [[WhatsApp-Bot-Design]].
+
+**Comando principal:**
+- Aluno digita "reserva" -> bot responde com list message (hoje + amanha) -> aluno toca aula -> confirma -> Yogo POST
+
+**Outros comandos:**
+- "cancelar" -> lista inscricoes activas -> cancela
+- "minhas aulas" -> proximas inscricoes
+- "plano" -> sessoes restantes, proximo pagamento
 
 **Schema Prisma:**
-- `WaMessage` — mensagens in/out
-- `WaTemplate` — templates aprovados Meta
-- `Broadcast` — campanhas de mensagens
-- `GroupInvitation` — convites ao grupo
+- `WaConversation` -- state machine por nº (pending intent + pendingClassId + TTL)
+- `WaMessage` -- historico in/out
 
-**Novas pages:**
-- `/dashboard/chat` — caixa de entrada estilo WhatsApp Web
-- `/dashboard/broadcasts` — campanhas manuais
+**Nova page:**
+- `/dashboard/chat` -- inbox para o Marcelo ver historico das conversas
 
 **Features:**
-- Webhook receiver para Meta WhatsApp
-- Envio de templates aprovados
-- Auto-convite ao grupo para novos clientes Yogo
-- Auto-transitions de leads baseadas em mensagens
-- Cloudflare Tunnel para webhook publico
+- Webhook receiver Meta WhatsApp
+- Parser de comandos (keywords + LLM Haiku fallback opcional)
+- Filtro de aulas pelo plano do aluno (resolve limite Meta de 10 items por list)
+- Inscricao automatica via `POST /class-signups` (Yogo escolhe pass/membership)
+- Cancelamento via `DELETE /class-signups/{id}`
+- Cloudflare Tunnel para webhook publico (dev)
+- Pushes seletivos opcionais: lembrete 30min antes (utility template) -- custo ~EUR 20/mes
+
+**Custo Meta:** EUR 0/mes em pull. Pushes seletivos opcionais ~EUR 20/mes para 150 alunos.
 
 ---
 

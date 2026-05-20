@@ -5,6 +5,7 @@ Central index for Striker's House Dashboard documentation.
 ## Architecture & Design
 
 - [[Leads-Hub-Refactor-2026-04-30]] — Unified Leads/Trials hub with Interessados + Follow-up stages
+- [[WhatsApp-Bot-Design]] — Pull-based bot: aluno digita "reserva" → bot mostra aulas → reserva via Yogo
 
 ## Features
 
