@@ -42,6 +42,14 @@ function daysFromToday(dateStr?: string): number | null {
   return Math.round((d.getTime() - today.getTime()) / 86400000);
 }
 
+const PT_MONTHS_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+function formatShort(dateStr?: string): string {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return dateStr;
+  return `${d} ${PT_MONTHS_SHORT[m - 1]}`;
+}
+
 function MembershipRow({ m, bucket }: Row) {
   const name = m.user_full_name || "—";
   const initials = name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
@@ -87,7 +95,7 @@ function MembershipRow({ m, bucket }: Row) {
             </>
           )}
         </div>
-        {m.status_text && (
+        {bucket === "paused" && m.status_text && (
           <div style={{ fontSize: 10, color: accent, marginTop: 3, fontStyle: "italic" }}>
             {m.status_text}
           </div>
@@ -95,9 +103,14 @@ function MembershipRow({ m, bucket }: Row) {
       </div>
       {days != null && bucket !== "ended" && (
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{m.paid_until}</div>
-          <div style={{ fontSize: 10.5, color: accent, fontWeight: 700, marginTop: 2 }}>
-            {days >= 0 ? `${days}d` : `há ${Math.abs(days)}d`}
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {bucket === "ending" ? "termina" : "pago até"}
+          </div>
+          <div style={{ fontSize: 14, color: "#fff", fontWeight: 700, marginTop: 1 }}>
+            {formatShort(m.paid_until)}
+          </div>
+          <div style={{ fontSize: 10, color: accent, fontWeight: 600, marginTop: 1 }}>
+            {days >= 0 ? `${days} dias` : `há ${Math.abs(days)}d`}
           </div>
         </div>
       )}
@@ -150,7 +163,7 @@ export default function PausasPage() {
           Pausas e Cancelamentos
         </h1>
         <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
-          Subscrições pausadas e canceladas pelo cliente
+          Pausadas e canceladas-mas-activas até ao fim do período pago
         </p>
       </div>
 
@@ -182,10 +195,13 @@ export default function PausasPage() {
       {/* Cancelled, still running */}
       {ending.length > 0 && (
         <div>
-          <div style={{ padding: "10px 18px 6px", display: "flex", alignItems: "baseline", gap: 8 }}>
-            <h3 className="head" style={{ margin: 0, fontSize: 18, color: "#fff" }}>Canceladas pelo cliente · a terminar</h3>
+          <div style={{ padding: "10px 18px 2px", display: "flex", alignItems: "baseline", gap: 8 }}>
+            <h3 className="head" style={{ margin: 0, fontSize: 18, color: "#fff" }}>Canceladas · ainda activas</h3>
             <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{ending.length}</span>
           </div>
+          <p style={{ padding: "0 18px 8px", margin: 0, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+            Pediram cancelamento mas mantêm acesso até ao fim do mês já pago
+          </p>
           <div style={{ padding: "0 18px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
             {ending.map((r) => <MembershipRow key={r.m.id} {...r} />)}
           </div>
