@@ -16,6 +16,9 @@ out
 *.db
 *.db-journal
 
+# Lead export CSVs (contain PII: names + phone numbers)
+leads-*.csv
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
