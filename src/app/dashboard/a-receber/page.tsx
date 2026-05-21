@@ -177,8 +177,8 @@ export default function AReceberPage() {
       <div style={{ padding: "0 18px 16px", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
         {[
           { label: "TOTAL", value: eur(totalRecurring + totalPT), color: "#fff" },
-          { label: "RECORRENTES", value: eur(totalRecurring), color: "#00E5A0" },
-          { label: "PTs", value: eur(totalPT), color: "#A78BFA" },
+          { label: "GRUPO", value: eur(totalRecurring), color: "#00E5A0" },
+          { label: "PT", value: eur(totalPT), color: "#A78BFA" },
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "12px 10px" }}>
             <div className="head" style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", marginBottom: 6, letterSpacing: "0.06em" }}>
@@ -277,7 +277,7 @@ export default function AReceberPage() {
             <div style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
               {/* Header */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "8px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                {["SEMANA", "RECORRENTES", "PTs", "TOTAL"].map((h) => (
+                {["SEMANA", "GRUPO", "PT", "TOTAL"].map((h) => (
                   <div key={h} style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em" }}>{h}</div>
                 ))}
               </div>
