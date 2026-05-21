@@ -19,6 +19,7 @@ const ALL_LINKS = [
   { href: "/dashboard/revenue", label: "Faturação" },
   { href: "/dashboard/funnel", label: "Funil" },
   { href: "/dashboard/subscribers", label: "Subscritores" },
+  { href: "/dashboard/saude-clientes", label: "Saúde" },
   { href: "/dashboard/pts", label: "PTs" },
   { href: "/dashboard/leads", label: "Leads" },
   { href: "/dashboard/trials", label: "Experimentais" },

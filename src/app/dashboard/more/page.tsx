@@ -21,7 +21,7 @@ const SECTIONS: Section[] = [
   { id: "classes",  label: "Visitantes",           sub: "USC, ClassPass, Bruce App",          icon: "✨", href: "/dashboard/classes" },
   { id: "leads",    label: "Leads",                sub: "Interessados que se cadastraram",    icon: "🎯", href: "/dashboard/leads" },
   { id: "receber",  label: "A Receber",            sub: "Calendário de vencimentos mensais",  icon: "📅", href: "/dashboard/a-receber" },
-  { id: "pausas",   label: "Pausas & Cancelamentos", sub: "Pausadas e canceladas pelo cliente", icon: "⏸️", href: "/dashboard/pausas" },
+  { id: "saude",    label: "Saúde dos Clientes",   sub: "Inadimplentes, pausados, churn, PT migrar", icon: "🩺", href: "/dashboard/saude-clientes" },
 ];
 
 export default function MorePage() {

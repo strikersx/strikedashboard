@@ -60,6 +60,7 @@ export const ADMIN_ONLY_ROUTES = [
   "/dashboard/subscribers",
   "/dashboard/pts",
   "/dashboard/a-receber",
+  "/dashboard/saude-clientes",
   "/dashboard/pausas",
 ] as const;
 
