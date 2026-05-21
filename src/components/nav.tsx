@@ -33,14 +33,14 @@ const ALL_LINKS = [
 const HomeIconSmall = <svg className="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
 const FunnelIconSmall = <svg className="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
 const FlameIconSmall = <svg className="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>;
-const GridIconSmall = <svg className="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>;
+const HealthIconSmall = <svg className="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>;
 
 const mobileLinks = [
   { href: "/dashboard", label: "Home", icon: HomeIconSmall },
   { href: "/dashboard/funnel", label: "Funil", icon: FunnelIconSmall },
   { href: "/dashboard/subscribers", label: "Subs", icon: <UsersIcon className="w-[17px] h-[17px]" /> },
   { href: "/dashboard/leads", label: "Leads", icon: FlameIconSmall },
-  { href: "/dashboard/trials-no-conv", label: "Mais", icon: GridIconSmall },
+  { href: "/dashboard/saude-clientes", label: "Saúde", icon: HealthIconSmall },
 ];
 
 export function Nav({ role, onRefresh, onLogout, lastFetch }: NavProps) {
