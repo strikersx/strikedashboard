@@ -4,8 +4,8 @@ import { useEffect, useCallback, useState } from "react";
 import { useYogoFetch } from "@/hooks/use-yogo";
 import { useDashboard } from "@/app/dashboard/layout";
 import { LoaderIcon } from "@/components/icons";
-import { getPlan, eur } from "@/lib/utils";
-import { ALL_SUB_IDS, PLAN_ORDER, PLAN_VALUES } from "@/lib/constants";
+import { getPlan, isPTPlan, eur } from "@/lib/utils";
+import { ALL_SUB_IDS, PLAN_VALUES } from "@/lib/constants";
 import { SubRow } from "@/components/sub-row";
 import { type SubStatus } from "@/components/status-pill";
 
@@ -21,18 +21,33 @@ interface Customer {
 interface Membership {
   id: number;
   user_id?: number;
-  user_full_name?: string;
   membership_type_name?: string;
-  membership_type_id?: number;
   paid_until?: string;
   status?: string;
   status_text?: string;
   next_payment?: { date?: string; amount?: number } | null;
 }
 
-interface PlanGroup {
+interface EnrichedCustomer extends Customer {
+  paidUntil: string;
+  nextPaymentDate?: string;
+  statusText?: string;
   plan: string;
-  customers: (Customer & { paid_until?: string; next_payment_date?: string; status_text?: string })[];
+  daysLeft: number;
+  status: SubStatus;
+  isPT: boolean;
+}
+
+const STATUS_PRIORITY: Record<string, number> = { active: 0, cancelled_running: 1, ended: 2 };
+
+function pickBestMembership(mbs: Membership[]): Membership | null {
+  if (mbs.length === 0) return null;
+  return [...mbs].sort((a, b) => {
+    const pa = STATUS_PRIORITY[a.status ?? ""] ?? 99;
+    const pb = STATUS_PRIORITY[b.status ?? ""] ?? 99;
+    if (pa !== pb) return pa - pb;
+    return (b.paid_until ?? "").localeCompare(a.paid_until ?? "");
+  })[0];
 }
 
 export default function SubscribersPage() {
@@ -40,17 +55,15 @@ export default function SubscribersPage() {
   const { fetchReport } = useYogoFetch();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [planGroups, setPlanGroups] = useState<PlanGroup[]>([]);
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
+  const [allCustomers, setAllCustomers] = useState<EnrichedCustomer[]>([]);
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "risk" | "failed" | "paused">("all");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const today = new Date().toISOString().slice(0, 10);
       const [customersRaw, membershipsRaw] = await Promise.all([
-        // All customers with any subscription (active or not, as long as not ended)
         fetchReport("reports/customers", {
           filters: [{
             type: "hasMembershipOrClassPass",
@@ -60,57 +73,51 @@ export default function SubscribersPage() {
           }],
           returnColumnHeaders: true,
         }),
-        // All memberships (not just active) for payment info
         fetchReport("reports/memberships-list", {}),
       ]);
 
       const customers = customersRaw as unknown as Customer[];
       const memberships = membershipsRaw as unknown as Membership[];
 
-      // Build lookup: user_id -> { best paid_until, next_payment date, status_text on that membership }
-      const infoByUser: Record<number, { paid_until: string; next_payment_date?: string; status_text?: string }> = {};
+      const mbsByUser: Record<number, Membership[]> = {};
       for (const m of memberships) {
-        if (!m.user_id || !m.paid_until) continue;
-        const existing = infoByUser[m.user_id];
-        if (!existing || m.paid_until > existing.paid_until) {
-          infoByUser[m.user_id] = {
-            paid_until: m.paid_until,
-            next_payment_date: m.next_payment?.date,
-            status_text: m.status_text,
-          };
-        }
+        if (!m.user_id) continue;
+        if (!mbsByUser[m.user_id]) mbsByUser[m.user_id] = [];
+        mbsByUser[m.user_id].push(m);
       }
 
-      // Group customers by plan
-      const grouped: Record<string, (Customer & { paid_until?: string; next_payment_date?: string; status_text?: string })[]> = {};
-      for (const c of customers) {
-        const plan = getPlan(c.has_membership_membership_description);
-        if (!grouped[plan]) grouped[plan] = [];
-        const info = infoByUser[c.id];
-        grouped[plan].push({
+      const enriched: EnrichedCustomer[] = customers.map((c) => {
+        const best = pickBestMembership(mbsByUser[c.id] ?? []);
+        const planFromMb = best ? getPlan(best.membership_type_name) : null;
+        const planFromCustomer = getPlan(c.has_membership_membership_description);
+        // Trust the best membership's plan over the customer-report description
+        // (the report can show the "wrong" plan when a customer has multiple memberships)
+        const plan = planFromMb && planFromMb !== "Outros" ? planFromMb : planFromCustomer;
+        const paidUntil = best?.paid_until ?? "";
+        const daysLeft = paidUntil
+          ? Math.round((new Date(paidUntil).getTime() - Date.now()) / 86400000)
+          : 0;
+        const statusText = best?.status_text ?? "";
+        const nextPaymentDate = best?.next_payment?.date ?? undefined;
+        const isPaused = /^Paus/i.test(statusText);
+        const willAutoRenew = !!nextPaymentDate && nextPaymentDate >= today;
+        let status: SubStatus = "active";
+        if (isPaused) status = "paused";
+        else if (!paidUntil || paidUntil < today) status = "expired";
+        else if (daysLeft <= 7 && !willAutoRenew) status = "risk";
+        return {
           ...c,
-          paid_until: info?.paid_until,
-          next_payment_date: info?.next_payment_date,
-          status_text: info?.status_text,
-        });
-      }
+          paidUntil,
+          nextPaymentDate,
+          statusText,
+          plan,
+          daysLeft,
+          status,
+          isPT: isPTPlan(plan),
+        };
+      });
 
-      const ordered: PlanGroup[] = PLAN_ORDER
-        .filter((p) => grouped[p])
-        .map((p) => ({ plan: p as string, customers: grouped[p] }));
-
-      // Add any plans not in PLAN_ORDER
-      for (const plan of Object.keys(grouped)) {
-        if (!ordered.some((o) => o.plan === plan)) {
-          ordered.push({ plan, customers: grouped[plan] });
-        }
-      }
-
-      const rev = ordered.reduce((sum, g) => sum + g.customers.length * (PLAN_VALUES[g.plan] || 0), 0);
-
-      setPlanGroups(ordered);
-      setTotalRevenue(rev);
-      setTotalCount(customers.length);
+      setAllCustomers(enriched);
       setLastFetch(new Date());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro desconhecido");
@@ -124,32 +131,21 @@ export default function SubscribersPage() {
   if (loading) return <div className="py-20 flex justify-center"><LoaderIcon /></div>;
   if (error) return <div className="py-20 text-center text-tone-coral text-sm">Erro: {error}</div>;
 
-  // Derive flat list with status from paid_until + next_payment + status_text
-  const today = new Date().toISOString().slice(0, 10);
-  type CustomerRow = Customer & { paid_until?: string; plan: string; daysLeft: number; status: SubStatus; paidUntil: string };
-  const allCustomers: CustomerRow[] = planGroups.flatMap((g) =>
-    g.customers.map((c): CustomerRow => {
-      const paidUntil = c.paid_until ?? "";
-      const daysLeft = paidUntil
-        ? Math.round((new Date(paidUntil).getTime() - Date.now()) / 86400000)
-        : 0;
-      // Yogo keeps status:"active" while signalling pause/scheduled-pause via status_text.
-      const isPaused = /^Paus/i.test(c.status_text ?? "");
-      // A scheduled next_payment means the subscription will auto-renew — not at risk.
-      const willAutoRenew = !!c.next_payment_date && c.next_payment_date >= today;
-      let status: SubStatus = "active";
-      if (isPaused) status = "paused";
-      else if (!paidUntil || paidUntil < today) status = "expired";
-      else if (daysLeft <= 7 && !willAutoRenew) status = "risk";
-      return { ...c, plan: g.plan, daysLeft, status, paidUntil };
-    })
-  );
-
   const filtered = (
     activeFilter === "all" ? allCustomers :
     activeFilter === "failed" ? allCustomers.filter((c) => c.status === "failed" || c.status === "expired") :
     allCustomers.filter((c) => c.status === activeFilter)
   ).slice().sort((a, b) => (b.paidUntil || "").localeCompare(a.paidUntil || ""));
+
+  const grupoRows = filtered.filter((c) => !c.isPT);
+  const ptRows = filtered.filter((c) => c.isPT);
+
+  const totalCount = allCustomers.length;
+  const grupoCount = allCustomers.filter((c) => !c.isPT).length;
+  const ptCount = totalCount - grupoCount;
+  const totalRevenue = allCustomers.reduce((sum, c) => sum + (PLAN_VALUES[c.plan] || 0), 0);
+  const grupoRevenue = allCustomers.filter((c) => !c.isPT).reduce((s, c) => s + (PLAN_VALUES[c.plan] || 0), 0);
+  const ptRevenue = totalRevenue - grupoRevenue;
 
   const filters = [
     { id: "all" as const,    label: "Todos",   count: allCustomers.length },
@@ -166,12 +162,16 @@ export default function SubscribersPage() {
         <div style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 14 }}>
           <div className="head" style={{ fontSize: 10, color: "rgba(255,255,255,0.72)", marginBottom: 6 }}>SUBSCRITORES</div>
           <div className="num" style={{ fontSize: 38, color: "#fff" }}>{totalCount}</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>activos · todos os planos</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>
+            {grupoCount} grupo · {ptCount} PT
+          </div>
         </div>
         <div style={{ background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 14 }}>
           <div className="head" style={{ fontSize: 10, color: "rgba(255,255,255,0.72)", marginBottom: 6 }}>MRR ESTIMADO</div>
           <div className="num" style={{ fontSize: 38, color: "#00E5A0" }}>{eur(totalRevenue)}</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>por mês · receita activa</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>
+            {eur(grupoRevenue)} grupo · {eur(ptRevenue)} PT
+          </div>
         </div>
       </div>
 
@@ -201,24 +201,59 @@ export default function SubscribersPage() {
         })}
       </div>
 
-      {/* Subscriber list */}
-      <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 6 }}>
-        {filtered.map((c) => (
-          <SubRow
-            key={c.id}
-            name={`${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "Sem nome"}
-            plan={c.plan}
-            detail={c.paidUntil ? `até ${c.paidUntil}` : "—"}
-            status={c.status}
-            daysUntilRenewal={c.daysLeft}
-          />
-        ))}
-        {filtered.length === 0 && (
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", padding: "8px 0" }}>
-            Nenhum subscritor nesta categoria.
+      {/* Aulas em grupo */}
+      {grupoRows.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "baseline", gap: 8 }}>
+            <h3 className="head" style={{ margin: 0, fontSize: 14, color: "#fff", fontWeight: 700, letterSpacing: "0.02em" }}>
+              Aulas em grupo
+            </h3>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{grupoRows.length}</span>
           </div>
-        )}
-      </div>
+          <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 6 }}>
+            {grupoRows.map((c) => (
+              <SubRow
+                key={c.id}
+                name={`${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "Sem nome"}
+                plan={c.plan}
+                detail={c.paidUntil ? `até ${c.paidUntil}` : "—"}
+                status={c.status}
+                daysUntilRenewal={c.daysLeft}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Personal Trainer */}
+      {ptRows.length > 0 && (
+        <div>
+          <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "baseline", gap: 8 }}>
+            <h3 className="head" style={{ margin: 0, fontSize: 14, color: "#fff", fontWeight: 700, letterSpacing: "0.02em" }}>
+              Personal Trainer
+            </h3>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{ptRows.length}</span>
+          </div>
+          <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 6 }}>
+            {ptRows.map((c) => (
+              <SubRow
+                key={c.id}
+                name={`${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "Sem nome"}
+                plan={c.plan}
+                detail={c.paidUntil ? `até ${c.paidUntil}` : "—"}
+                status={c.status}
+                daysUntilRenewal={c.daysLeft}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {grupoRows.length === 0 && ptRows.length === 0 && (
+        <div style={{ padding: "20px 18px", fontSize: 13, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>
+          Nenhum subscritor nesta categoria.
+        </div>
+      )}
     </div>
   );
 }

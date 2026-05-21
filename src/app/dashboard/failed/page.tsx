@@ -5,7 +5,7 @@ import { useYogoFetch } from "@/hooks/use-yogo";
 import { useDashboard } from "@/app/dashboard/layout";
 import { Pill } from "@/components/pill";
 import { LoaderIcon } from "@/components/icons";
-import { planColor, getPlan } from "@/lib/utils";
+import { planColor, getPlan, isPTPlan } from "@/lib/utils";
 import type { ColorName } from "@/lib/constants";
 
 interface Membership {
@@ -65,33 +65,52 @@ export default function FailedPage() {
 
       {memberships.length === 0 ? (
         <div className="py-12 text-center text-muted">Nenhum pagamento falhado encontrado</div>
-      ) : (
-        <div className="space-y-2">
-          {[...memberships]
-            .sort((a, b) => (b.paid_until || "").localeCompare(a.paid_until || ""))
-            .map((m) => {
-            const name = m.user_full_name || [m.user_first_name, m.user_last_name].filter(Boolean).join(" ") || `Membership #${m.id}`;
-            return (
-              <div key={m.id} className="bg-surface rounded-lg p-4 flex items-center justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-white">{name}</span>
-                    <Pill color="red">pagamento falhado</Pill>
-                  </div>
-                  <div className="text-xs text-muted flex flex-wrap gap-x-4 gap-y-0.5">
-                    {m.membership_type_name && <Pill color={planColor(getPlan(m.membership_type_name)) as ColorName}>{m.membership_type_name}</Pill>}
-                    {m.user_email && <span>{m.user_email}</span>}
-                    {m.user_phone && <span>{m.user_phone}</span>}
-                  </div>
+      ) : (() => {
+        const sorted = [...memberships].sort((a, b) => (b.paid_until || "").localeCompare(a.paid_until || ""));
+        const grupo = sorted.filter((m) => !isPTPlan(getPlan(m.membership_type_name)));
+        const pt = sorted.filter((m) => isPTPlan(getPlan(m.membership_type_name)));
+        const renderRow = (m: Membership) => {
+          const name = m.user_full_name || [m.user_first_name, m.user_last_name].filter(Boolean).join(" ") || `Membership #${m.id}`;
+          return (
+            <div key={m.id} className="bg-surface rounded-lg p-4 flex items-center justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-white">{name}</span>
+                  <Pill color="red">pagamento falhado</Pill>
                 </div>
-                {m.paid_until && (
-                  <div className="text-xs text-muted shrink-0">Até {m.paid_until}</div>
-                )}
+                <div className="text-xs text-muted flex flex-wrap gap-x-4 gap-y-0.5">
+                  {m.membership_type_name && <Pill color={planColor(getPlan(m.membership_type_name)) as ColorName}>{m.membership_type_name}</Pill>}
+                  {m.user_email && <span>{m.user_email}</span>}
+                  {m.user_phone && <span>{m.user_phone}</span>}
+                </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+              {m.paid_until && (
+                <div className="text-xs text-muted shrink-0">Até {m.paid_until}</div>
+              )}
+            </div>
+          );
+        };
+        return (
+          <div className="space-y-6">
+            {grupo.length > 0 && (
+              <section>
+                <h3 className="head text-sm font-semibold mb-2 text-muted-strong uppercase tracking-wide">
+                  Aulas em grupo · <span className="num">{grupo.length}</span>
+                </h3>
+                <div className="space-y-2">{grupo.map(renderRow)}</div>
+              </section>
+            )}
+            {pt.length > 0 && (
+              <section>
+                <h3 className="head text-sm font-semibold mb-2 text-muted-strong uppercase tracking-wide">
+                  Personal Trainer · <span className="num">{pt.length}</span>
+                </h3>
+                <div className="space-y-2">{pt.map(renderRow)}</div>
+              </section>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

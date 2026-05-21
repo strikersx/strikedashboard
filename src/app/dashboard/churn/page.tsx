@@ -82,11 +82,11 @@ export default function ChurnPage() {
     <div className="space-y-6">
       <div>
         <h1 className="head text-xl font-bold">Risco de churn</h1>
-        <p className="text-muted text-sm mt-1">Sem reservas nos últimos 30 dias</p>
+        <p className="text-muted text-sm mt-1">Sem reservas nos últimos 30 dias · só planos de grupo (PTs avaliados separadamente)</p>
       </div>
       <DataTable
         rows={rows}
-        title="Membros em risco"
+        title="Aulas em grupo · membros em risco"
         empty="Nenhum membro em risco de churn"
       />
     </div>
