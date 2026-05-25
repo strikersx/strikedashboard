@@ -14,6 +14,8 @@ export default defineConfig({
         "src/lib/auth.ts",
         "src/lib/constants.ts",
         "src/lib/utils.ts",
+        "src/lib/wa/raw-body.ts",
+        "src/lib/wa/meta.ts",
       ],
       reporter: ["text", "html"],
     },
