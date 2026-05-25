@@ -1,4 +1,4 @@
-import { isReservarEnabled } from "@/lib/wa/config";
+import { isReservarEnabled, isCancelarEnabled } from "@/lib/wa/config";
 import { parseIntent, type MetaInboundMessage } from "@/lib/wa/parser";
 import { isExpired, loadSession, resetToIdle } from "@/lib/wa/session";
 import { sendText } from "@/lib/wa/meta";
@@ -8,6 +8,13 @@ import {
   handleCancelBook,
   handleReservar,
 } from "@/lib/wa/handlers/reservar";
+import {
+  handleAbortCancel,
+  handleCancelPick,
+  handleCancelPickByText,
+  handleCancelar,
+  handleConfirmCancel,
+} from "@/lib/wa/handlers/cancelar";
 import { handleFallback } from "@/lib/wa/handlers/fallback";
 
 // Dispatch routes an inbound message based on the session's current state.
@@ -39,8 +46,15 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
     return;
   }
   if (intent.kind === "cancelar") {
-    // Slice 4 wires cancelar; for now point users at the human channel.
-    await sendText(phoneE164, "Cancelar chega no próximo update. Por agora, escreve ao Marcelo.");
+    if (!isCancelarEnabled()) {
+      await sendText(phoneE164, "Cancelar ainda não está activo. Por agora, escreve ao Marcelo.");
+      return;
+    }
+    if (session.state !== "IDLE") {
+      const reset = await resetToIdle(session);
+      if (reset.ok) session = reset.session;
+    }
+    await handleCancelar(session);
     return;
   }
 
@@ -52,6 +66,16 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
     case "AWAIT_CONFIRM_BOOK":
       if (intent.kind === "button" && intent.id === "confirm_book") return handleConfirmBook(session);
       if (intent.kind === "button" && intent.id === "cancel_book") return handleCancelBook(session);
+      return handleFallback(phoneE164);
+
+    case "AWAIT_CANCEL_PICK":
+      if (intent.kind === "list_pick") return handleCancelPick(session, intent.id);
+      if (intent.kind === "text") return handleCancelPickByText(session, intent.body);
+      return handleFallback(phoneE164);
+
+    case "AWAIT_CONFIRM_CANCEL":
+      if (intent.kind === "button" && intent.id === "confirm_cancel") return handleConfirmCancel(session);
+      if (intent.kind === "button" && intent.id === "abort_cancel") return handleAbortCancel(session);
       return handleFallback(phoneE164);
 
     case "IDLE":

@@ -10,3 +10,7 @@ export function isWaEnabled(): boolean {
 export function isReservarEnabled(): boolean {
   return process.env.WA_FLOW_RESERVAR === "true";
 }
+
+export function isCancelarEnabled(): boolean {
+  return process.env.WA_FLOW_CANCELAR === "true";
+}
