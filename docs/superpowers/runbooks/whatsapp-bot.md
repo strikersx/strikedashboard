@@ -60,8 +60,25 @@ What to look at when something feels wrong:
 | `BOOKING_FAIL` | Yogo returned 5xx on signup attempt | Check Yogo dashboard for the class; retry manually if needed. |
 | `CANCEL_OK` | Yogo `DELETE /class-signups/{id}` returned 200 | Happy path. |
 | `CANCEL_FAIL` | DELETE failed | Often the signup was already cancelled; check Yogo. |
+| `TEMPLATE_SENT` | Cron successfully sent a `trial_followup_pt` template | Happy path. |
 | `TEMPLATE_PENDING` | Cron tried to send a template that Meta hasn't approved yet | Submit / re-submit in Meta Manager → Message Templates. |
+| `TEMPLATE_FAIL` | Template send returned non-pending error (rate-limit, account block, etc.) | Inspect `meta.status` in the event; check Meta App health. |
 | `YOGO_401` | Yogo rejected our token | Refresh `YOGO_TOKEN`. JWT expires every 180 days; current one runs to Oct 2026. |
+
+## Cron jobs
+
+| Path | Schedule (UTC) | Purpose |
+|---|---|---|
+| `/api/cron/trial-followup` | `0 10 * * *` + `0 11 * * *` | Sends `trial_followup_pt` to yesterday's trial attendees. Dual schedule covers Lisbon DST (WEST=UTC+1 in summer makes 10 UTC = 11h Lisbon; WET=UTC+0 in winter makes 11 UTC = 11h Lisbon). Route exits early if Lisbon hour isn't 11. |
+| `/api/cron/wa-purge` | `0 3 * * *` | GDPR retention: deletes `WaInbound` rows older than 90 days. |
+
+Both routes require `Authorization: Bearer ${CRON_SECRET}`. Vercel cron triggers include this header automatically when the env var is configured.
+
+Manual run (from a shell with `CRON_SECRET` set):
+```bash
+curl -sH "Authorization: Bearer $CRON_SECRET" https://<prod>/api/cron/trial-followup
+curl -sH "Authorization: Bearer $CRON_SECRET" https://<prod>/api/cron/wa-purge
+```
 
 ## Common queries (sqlite locally / libsql in prod — same SQL)
 
