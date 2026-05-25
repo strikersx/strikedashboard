@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { renderClassList, renderConfirmBook, type YogoClassLite } from "../../../src/lib/wa/render";
+import {
+  renderCancelList,
+  renderClassList,
+  renderConfirmBook,
+  renderConfirmCancel,
+  type SignupLite,
+  type YogoClassLite,
+} from "../../../src/lib/wa/render";
 
 function klass(id: number, date: string, time: string, name: string, signups = 0, seats = 10): YogoClassLite {
   return { id, date, start_time: time, class_type: { name }, signup_count: signups, seats };
@@ -75,5 +82,50 @@ describe("renderConfirmBook", () => {
   it("falls back to 'Aula' when class_type is missing", () => {
     const out = renderConfirmBook({ id: 1, date: TODAY, start_time: "19:30" });
     expect(out.bodyText).toContain("Aula");
+  });
+});
+
+function signup(id: number, date: string, time: string, name: string): SignupLite {
+  return { id, klass: { id: id * 100, date, start_time: time, class_type: { name } } };
+}
+
+describe("renderCancelList", () => {
+  it("text response when empty", () => {
+    expect(renderCancelList([])).toEqual({
+      type: "text",
+      body: "Sem aulas marcadas nos próximos dias.",
+    });
+  });
+
+  it("renders an interactive list for 2–20 signups", () => {
+    const list = [signup(1, TODAY, "19:30", "Striking"), signup(2, TOMORROW, "10:00", "BJJ")];
+    const out = renderCancelList(list);
+    expect(out.type).toBe("list");
+    if (out.type !== "list") throw new Error("type narrow");
+    expect(out.sections[0].rows.map((r) => r.id)).toEqual(["1", "2"]);
+  });
+
+  it("falls back to free-text instruction past 20 signups", () => {
+    const list = Array.from({ length: 21 }, (_, i) => signup(i + 1, TODAY, "19:30", "Aula"));
+    const out = renderCancelList(list);
+    expect(out.type).toBe("text");
+    if (out.type !== "text") throw new Error("type narrow");
+    expect(out.body).toMatch(/DD\/MM HH:MM/);
+  });
+
+  it("renders single-section list when only 1 signup (still 'PRÓXIMAS')", () => {
+    const out = renderCancelList([signup(1, TODAY, "19:30", "Striking")]);
+    if (out.type !== "list") throw new Error("expected list");
+    expect(out.sections).toHaveLength(1);
+    expect(out.sections[0].title).toBe("PRÓXIMAS");
+  });
+});
+
+describe("renderConfirmCancel", () => {
+  it("renders confirm + abort buttons", () => {
+    const out = renderConfirmCancel(signup(1, TODAY, "19:30", "Striking"));
+    expect(out.buttons.map((b) => b.id)).toEqual(["confirm_cancel", "abort_cancel"]);
+    expect(out.bodyText).toContain("Striking");
+    expect(out.bodyText).toContain("19:30");
   });
 });

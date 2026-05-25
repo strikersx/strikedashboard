@@ -59,3 +59,54 @@ export async function createSignup(userId: number, classId: number): Promise<Cre
   if (res.status === 403) return { kind: "no_plan" };
   return { kind: "server_error", status: res.status };
 }
+
+export interface YogoSignup {
+  id: number;
+  user_id?: number;
+  user?: number | { id?: number };
+  class?: number | YogoClass;
+  cancelled_at?: number | null;
+}
+
+// Future signups for a user, populated with the nested class so handlers can
+// show date/time without an extra round-trip.
+export async function listFutureSignups(userId: number, fromDate: string, toDate: string): Promise<YogoSignup[]> {
+  const params = new URLSearchParams({ user: String(userId), startDate: fromDate, endDate: toDate });
+  params.append("populate[]", "class");
+  params.append("populate[]", "class.class_type");
+  const res = await yogoFetch<unknown>(`class-signups?${params.toString()}`);
+  if (!res.ok) return [];
+  return Array.isArray(res.data) ? (res.data as YogoSignup[]) : [];
+}
+
+// 15min cutoff guards against cancellations after a class has effectively
+// started — Yogo would still accept, but the student loses the paid slot.
+const CANCEL_CUTOFF_MS = 15 * 60 * 1000;
+
+export function isCancellable(signup: YogoSignup, now: Date = new Date()): boolean {
+  if (signup.cancelled_at) return false;
+  const klass = typeof signup.class === "object" ? signup.class : null;
+  if (!klass) return false;
+  const start = parseClassStart(klass);
+  if (!start) return false;
+  return start.getTime() > now.getTime() + CANCEL_CUTOFF_MS;
+}
+
+export function parseClassStart(klass: { date?: string; start_time?: string } | null): Date | null {
+  if (!klass?.date || !klass?.start_time) return null;
+  // Class date+time are tenant-local (Europe/Lisbon for Striker's House); we
+  // compare against `new Date()` which is also wall-clock for the server, so
+  // for v1 this is good enough. A future refactor can pin to Europe/Lisbon.
+  const iso = `${klass.date}T${klass.start_time}:00`;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export type DeleteSignupResult = { kind: "ok" } | { kind: "not_found" } | { kind: "server_error"; status: number };
+
+export async function deleteSignup(signupId: number): Promise<DeleteSignupResult> {
+  const res = await yogoFetch<unknown>(`class-signups/${signupId}`, { method: "DELETE" });
+  if (res.ok) return { kind: "ok" };
+  if (res.status === 404) return { kind: "not_found" };
+  return { kind: "server_error", status: res.status };
+}

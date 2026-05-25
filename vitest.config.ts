@@ -10,7 +10,6 @@ export default defineConfig({
       exclude: [
         "src/lib/yogo-proxy.ts",
         "src/lib/yogo/fetch.ts",
-        "src/lib/yogo/signups.ts",
         "src/lib/db.ts",
         "src/lib/auth.ts",
         "src/lib/constants.ts",
@@ -20,6 +19,7 @@ export default defineConfig({
         "src/lib/wa/session.ts",
         "src/lib/wa/dispatch.ts",
         "src/lib/wa/handlers/reservar.ts",
+        "src/lib/wa/handlers/cancelar.ts",
         "src/lib/wa/handlers/fallback.ts",
       ],
       reporter: ["text", "html"],

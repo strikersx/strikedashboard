@@ -92,6 +92,56 @@ export function renderConfirmBook(klass: YogoClassLite): WaButtonPayload {
   };
 }
 
+export interface SignupLite {
+  id: number;
+  klass: YogoClassLite;
+}
+
+// Cancel picker. N=1 still shows a confirm prompt (spec: mandatory confirm
+// even for a single signup, so a stray tap doesn't burn the slot). N=2-10
+// list. N>10 free-text fallback handled by the caller.
+export function renderCancelList(signups: SignupLite[]): WaListPayload | WaTextPayload {
+  if (signups.length === 0) {
+    return { type: "text", body: "Sem aulas marcadas nos próximos dias." };
+  }
+  if (signups.length > MAX_ROWS_PER_SECTION * 2) {
+    return {
+      type: "text",
+      body: "Tens muitas marcações. Escreve a data e hora (DD/MM HH:MM) da aula a cancelar.",
+    };
+  }
+  const rows = signups.slice(0, MAX_ROWS_PER_SECTION * 2).map((s) => ({
+    id: String(s.id),
+    title: truncate(`${s.klass.start_time} ${s.klass.class_type?.name ?? "Aula"}`, MAX_ROW_TITLE),
+    description: truncate(s.klass.date, MAX_ROW_DESC),
+  }));
+  const sections: WaListSection[] =
+    rows.length <= MAX_ROWS_PER_SECTION
+      ? [{ title: "PRÓXIMAS", rows }]
+      : [
+          { title: "PRÓXIMAS", rows: rows.slice(0, MAX_ROWS_PER_SECTION) },
+          { title: "DEPOIS", rows: rows.slice(MAX_ROWS_PER_SECTION) },
+        ];
+  return {
+    type: "list",
+    bodyText: "Escolhe a aula para cancelar:",
+    buttonText: "Ver marcações",
+    sections,
+  };
+}
+
+export function renderConfirmCancel(signup: SignupLite): WaButtonPayload {
+  const name = signup.klass.class_type?.name ?? "Aula";
+  return {
+    type: "button",
+    bodyText: truncate(`Cancelar ${name} · ${signup.klass.date} ${signup.klass.start_time}?`, 1024),
+    buttons: [
+      { id: "confirm_cancel", title: "Sim, cancelar" },
+      { id: "abort_cancel", title: "Não" },
+    ],
+  };
+}
+
 function toRow(klass: YogoClassLite): WaListRow {
   const name = klass.class_type?.name ?? "Aula";
   const title = truncate(`${klass.start_time} ${name}`, MAX_ROW_TITLE);

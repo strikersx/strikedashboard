@@ -42,3 +42,27 @@ export function parseIntent(msg: MetaInboundMessage): Intent {
 function stripDiacritics(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
+
+// Free-text DD/MM HH:MM fallback for cancelar when the user has too many
+// signups for an interactive list. Accepts "25/05 19:30", "25/5 19h30",
+// "25-05 19h30". Returns { day, month, hour, minute } or null.
+const DATE_TIME_RE = /^\s*(\d{1,2})[/-](\d{1,2})\s+(\d{1,2})[h:](\d{2})\s*$/;
+
+export interface DateTimeParts {
+  day: number;
+  month: number;
+  hour: number;
+  minute: number;
+}
+
+export function parseDateTime(input: string): DateTimeParts | null {
+  const m = input.match(DATE_TIME_RE);
+  if (!m) return null;
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  const hour = Number(m[3]);
+  const minute = Number(m[4]);
+  if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return { day, month, hour, minute };
+}
