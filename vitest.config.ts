@@ -7,7 +7,14 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/lib/**/*.ts"],
-      exclude: ["src/lib/yogo-proxy.ts", "src/lib/auth.ts", "src/lib/constants.ts", "src/lib/utils.ts"],
+      exclude: [
+        "src/lib/yogo-proxy.ts",
+        "src/lib/yogo/fetch.ts",
+        "src/lib/db.ts",
+        "src/lib/auth.ts",
+        "src/lib/constants.ts",
+        "src/lib/utils.ts",
+      ],
       reporter: ["text", "html"],
     },
   },
