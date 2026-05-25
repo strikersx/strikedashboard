@@ -5,3 +5,59 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
 }
+
+model WaContact {
+  phoneE164      String      @id
+  yogoCustomerId Int?
+  firstSeenAt    DateTime    @default(now())
+  sessions       WaSession[]
+  inbounds       WaInbound[]
+  outbounds      WaOutbound[]
+}
+
+model WaInbound {
+  id         String    @id @default(cuid())
+  metaId     String    @unique
+  phoneE164  String
+  body       String
+  receivedAt DateTime  @default(now())
+  contact    WaContact @relation(fields: [phoneE164], references: [phoneE164])
+
+  @@index([phoneE164, receivedAt])
+}
+
+model WaSession {
+  phoneE164       String    @id
+  state           String    @default("IDLE")
+  pendingClassId  Int?
+  pendingSignupId Int?
+  expiresAt       DateTime?
+  version         Int       @default(0)
+  updatedAt       DateTime  @updatedAt
+  contact         WaContact @relation(fields: [phoneE164], references: [phoneE164])
+}
+
+model WaOutbound {
+  id          String    @id @default(cuid())
+  phoneE164   String
+  kind        String
+  payload     String
+  status      String
+  error       String?
+  templateKey String?
+  sentAt      DateTime  @default(now())
+  contact     WaContact @relation(fields: [phoneE164], references: [phoneE164])
+
+  @@unique([phoneE164, templateKey])
+  @@index([phoneE164, sentAt])
+}
+
+model WaEvent {
+  id        String   @id @default(cuid())
+  kind      String
+  phoneE164 String?
+  meta      String?
+  createdAt DateTime @default(now())
+
+  @@index([kind, createdAt])
+}
