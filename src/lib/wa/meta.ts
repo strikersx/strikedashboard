@@ -16,6 +16,7 @@ interface MetaSendInput {
   type: string;
   text?: { body: string };
   interactive?: unknown;
+  template?: unknown;
 }
 
 export async function sendText(toPhoneE164: string, body: string): Promise<SendResult> {
@@ -39,6 +40,31 @@ export async function sendList(toPhoneE164: string, payload: WaListPayload): Pro
           })),
         })),
       },
+    },
+  });
+}
+
+export interface TemplateParameter {
+  type: "text";
+  text: string;
+}
+
+// sendTemplate posts a pre-approved Meta template. The cron uses this for
+// trial follow-ups. If the template is not yet approved (G3 pending), Meta
+// returns 400 with error code 132xxx -- callers should treat that as a
+// TEMPLATE_PENDING audit event, not a hard failure.
+export async function sendTemplate(
+  toPhoneE164: string,
+  templateName: string,
+  languageCode: string,
+  bodyParameters: TemplateParameter[],
+): Promise<SendResult> {
+  return send(toPhoneE164, {
+    type: "template",
+    template: {
+      name: templateName,
+      language: { code: languageCode },
+      components: bodyParameters.length > 0 ? [{ type: "body", parameters: bodyParameters }] : [],
     },
   });
 }
