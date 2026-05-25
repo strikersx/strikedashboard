@@ -1,5 +1,8 @@
-// Thin Meta Cloud API client. v1 only needs sendText for the echo handler;
-// list/button/template helpers land in Slices 3+.
+// Thin Meta Cloud API client. v1 needs sendText (echo + bot replies),
+// sendList (class picker), and sendButton (confirm prompts). Template send
+// lands with Slice 5 (cron trial follow-up).
+
+import type { WaListPayload, WaButtonPayload } from "./render";
 
 const GRAPH_VERSION = "v21.0";
 
@@ -9,7 +12,54 @@ export interface SendResult {
   body: string;
 }
 
+interface MetaSendInput {
+  type: string;
+  text?: { body: string };
+  interactive?: unknown;
+}
+
 export async function sendText(toPhoneE164: string, body: string): Promise<SendResult> {
+  return send(toPhoneE164, { type: "text", text: { body } });
+}
+
+export async function sendList(toPhoneE164: string, payload: WaListPayload): Promise<SendResult> {
+  return send(toPhoneE164, {
+    type: "interactive",
+    interactive: {
+      type: "list",
+      body: { text: payload.bodyText },
+      action: {
+        button: payload.buttonText.slice(0, 20),
+        sections: payload.sections.map((s) => ({
+          title: s.title.slice(0, 24),
+          rows: s.rows.map((r) => ({
+            id: r.id,
+            title: r.title,
+            ...(r.description ? { description: r.description } : {}),
+          })),
+        })),
+      },
+    },
+  });
+}
+
+export async function sendButton(toPhoneE164: string, payload: WaButtonPayload): Promise<SendResult> {
+  return send(toPhoneE164, {
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: payload.bodyText },
+      action: {
+        buttons: payload.buttons.map((b) => ({
+          type: "reply",
+          reply: { id: b.id, title: b.title.slice(0, 20) },
+        })),
+      },
+    },
+  });
+}
+
+async function send(toPhoneE164: string, message: MetaSendInput): Promise<SendResult> {
   const phoneId = process.env.WA_PHONE_NUMBER_ID;
   const token = process.env.WA_ACCESS_TOKEN;
   if (!phoneId || !token) throw new Error("WA_PHONE_NUMBER_ID / WA_ACCESS_TOKEN not configured");
@@ -25,8 +75,7 @@ export async function sendText(toPhoneE164: string, body: string): Promise<SendR
     body: JSON.stringify({
       messaging_product: "whatsapp",
       to: recipient,
-      type: "text",
-      text: { body },
+      ...message,
     }),
   });
 

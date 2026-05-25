@@ -3,16 +3,15 @@ import { after } from "next/server";
 import { db } from "@/lib/db";
 import { readRawBody } from "@/lib/wa/raw-body";
 import { verifySignature } from "@/lib/wa/verify";
-import { sendText } from "@/lib/wa/meta";
 import { isWaEnabled } from "@/lib/wa/config";
+import { dispatch } from "@/lib/wa/dispatch";
+import type { MetaInboundMessage } from "@/lib/wa/parser";
 
 const SIGNATURE_HEADER = "x-hub-signature-256";
 
-interface MetaMessage {
+interface MetaMessage extends MetaInboundMessage {
   id?: string;
   from?: string;
-  type?: string;
-  text?: { body?: string };
 }
 
 interface MetaChange {
@@ -67,24 +66,27 @@ export async function POST(req: NextRequest) {
     return new Response("invalid json", { status: 400 });
   }
 
-  const newMessages: Array<{ metaId: string; phoneE164: string; body: string }> = [];
+  const toDispatch: Array<{ phoneE164: string; msg: MetaMessage }> = [];
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
       for (const msg of change.value?.messages ?? []) {
         if (!msg.id || !msg.from) continue;
         const phoneE164 = msg.from.startsWith("+") ? msg.from : `+${msg.from}`;
-        const body = msg.type === "text" ? (msg.text?.body ?? "") : `[unsupported ${msg.type ?? "unknown"}]`;
+        const body =
+          msg.type === "text"
+            ? (msg.text?.body ?? "")
+            : JSON.stringify({ type: msg.type, interactive: msg.interactive });
         const stored = await storeInbound({ metaId: msg.id, phoneE164, body });
-        if (stored) newMessages.push({ metaId: msg.id, phoneE164, body });
+        if (stored) toDispatch.push({ phoneE164, msg });
       }
     }
   }
 
-  if (newMessages.length > 0) {
+  if (toDispatch.length > 0) {
     after(async () => {
-      for (const m of newMessages) {
+      for (const item of toDispatch) {
         try {
-          await sendText(m.phoneE164, `echo: ${m.body}`);
+          await dispatch(item.phoneE164, item.msg);
         } catch {
           // Errors here surface in Vercel logs; nothing user-facing.
         }
