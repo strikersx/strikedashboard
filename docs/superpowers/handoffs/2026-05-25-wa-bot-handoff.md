@@ -1,8 +1,11 @@
 ---
 title: WhatsApp Bot v1 — Session Handoff
 date: 2026-05-25
-status: slice-0-ready-for-merge
-next-action: review-and-merge-PR-1
+status: slice-0-merged-g2-passed
+next-action: G1-token-confirm + G3-template-submit (user actions) → Slice 1 (Turso + yogoFetch)
+updates:
+  - "2026-05-25 17h15: PR #1 merged (squash 2e93ec3); local main synced."
+  - "2026-05-25 17h25: G2 phone spike PASSED at 98.56% (gate ≥98%). See reason/260525-0025-wa-bot-v1-plan-review/g2-phone-spike.md."
 ---
 
 # WhatsApp Bot v1 — Handoff
@@ -19,9 +22,9 @@ Sessão a 2026-05-25 implementou Slice 0 do WhatsApp bot v1 da Striker's House. 
 
 ## Próxima acção (in order)
 
-1. **Review do PR #1 e merge** — Must-fix/Should-fix buckets vazios; pre-existing build/lint não são introduzidos por este PR.
-2. **Step 6 service-layer-refactor** — para Slice 0 é apenas: confirmar que `phone.ts` está bem isolado (verificado), update do vault/spec se necessário, fechar PR.
-3. **G2 spike (phone normalisation)** — bloqueia Slice 3.  Correr `phone.ts` contra os ~700 customers do Yogo dump → assert ≥98% map para single E.164. **Sem este número documentado, Slice 3 não arranca.** Script sugerido: `scripts/phone-spike.ts` (a criar).
+1. ~~**Review do PR #1 e merge**~~ ✅ DONE 2026-05-25 17h15 (squash 2e93ec3)
+2. ~~**Step 6 service-layer-refactor**~~ ✅ N/A para Slice 0 (`phone.ts` isolado, sem consumidores ainda)
+3. ~~**G2 spike (phone normalisation)**~~ ✅ PASSED 2026-05-25 17h25 com 98.56% hit rate em 209 phones / 231 customers. 3 misses identificados (1 FR, 2 PT typos 10-digit). Doc completo em [`reason/260525-0025-wa-bot-v1-plan-review/g2-phone-spike.md`](../../reason/260525-0025-wa-bot-v1-plan-review/g2-phone-spike.md). Slice 3 unblocked. **Decisão: não tocar em `phone.ts`** — heurísticas adicionais introduziriam false-positive matches (risco maior que o miss rate residual). 3 misses caem em `LOOKUP_MISS` → fallback humano, comportamento desejado. Re-run com: `npm run phone:spike`.
 4. **G1 — confirmar System User token Meta** — curl `https://graph.facebook.com/v21.0/me -H "Authorization: Bearer $WA_TOKEN"` 25h depois do issue. Confirma que não é user token de 24h.
 5. **G3 — submeter template `trial_followup_pt`** no WhatsApp Manager. Lead aprovação 24-48h.
 6. **Slice 1** — Turso via Vercel Marketplace + `yogoFetch` extraction. ~80 LOC, zero features. Build smoke obrigatório (todas as `/dashboard/*` pages).

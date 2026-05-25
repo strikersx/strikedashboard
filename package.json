@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "phone:spike": "RUN_SPIKES=1 vitest run tests/spike/phone-normalisation.test.ts --reporter=verbose"
   },
   "keywords": [],
   "author": "",
