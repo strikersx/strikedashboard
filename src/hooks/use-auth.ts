@@ -5,12 +5,16 @@ import type { Role } from "@/lib/constants";
 
 export function useAuth() {
   const [role, setRole] = useState<Role | null>(null);
+  const [waEnabled, setWaEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/auth")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setRole(data?.role ?? null))
+      .then((data) => {
+        setRole(data?.role ?? null);
+        if (typeof data?.waEnabled === "boolean") setWaEnabled(data.waEnabled);
+      })
       .catch(() => setRole(null))
       .finally(() => setLoading(false));
   }, []);
@@ -35,5 +39,5 @@ export function useAuth() {
     window.location.href = "/login";
   }, []);
 
-  return { role, loading, login, logout, isAdmin: role === "admin" };
+  return { role, loading, login, logout, waEnabled, isAdmin: role === "admin" };
 }

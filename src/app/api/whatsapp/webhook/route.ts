@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { readRawBody } from "@/lib/wa/raw-body";
 import { verifySignature } from "@/lib/wa/verify";
 import { sendText } from "@/lib/wa/meta";
+import { isWaEnabled } from "@/lib/wa/config";
 
 const SIGNATURE_HEADER = "x-hub-signature-256";
 
@@ -39,12 +40,17 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — inbound message. Must respond <50ms or Meta retries aggressively.
+//   0. Kill switch (WA_ENABLED=false) → 200 ack-only, no processing
 //   1. Read raw body once (HMAC needs the exact bytes)
 //   2. Verify HMAC → 401 + WaEvent HMAC_FAIL on mismatch
 //   3. Upsert each message to WaInbound (metaId @unique catches dedupe)
 //   4. Return 200
 //   5. after() — echo each new message back via sendText
 export async function POST(req: NextRequest) {
+  if (!isWaEnabled()) {
+    return NextResponse.json({ ack: true, disabled: true });
+  }
+
   const rawBody = await readRawBody(req);
   const signature = req.headers.get(SIGNATURE_HEADER);
   const appSecret = process.env.WA_APP_SECRET ?? "";
