@@ -1,0 +1,61 @@
+import { yogoFetch } from "@/lib/yogo/fetch";
+
+export interface YogoClass {
+  id: number;
+  date: string;
+  start_time: string;
+  end_time?: string;
+  cancelled?: number | boolean;
+  seats?: number;
+  signup_count?: number;
+  class_type?: { id: number; name?: string } | null;
+  signups?: Array<{ user_id?: number; user?: { id?: number }; cancelled_at?: number | null }>;
+}
+
+export async function listClasses(startDate: string, endDate: string): Promise<YogoClass[]> {
+  const params = new URLSearchParams({ startDate, endDate });
+  params.append("populate[]", "class_type");
+  params.append("populate[]", "signup_count");
+  params.append("populate[]", "signups");
+  const res = await yogoFetch<unknown>(`classes?${params.toString()}`);
+  if (!res.ok) return [];
+  return Array.isArray(res.data) ? (res.data as YogoClass[]) : [];
+}
+
+// Filter helper: keeps only classes that are not cancelled, have a seat free,
+// and the given user is not already booked into.
+export function bookableFor(klass: YogoClass, userId: number): boolean {
+  if (klass.cancelled) return false;
+  if (
+    typeof klass.signup_count === "number" &&
+    typeof klass.seats === "number" &&
+    klass.signup_count >= klass.seats
+  ) {
+    return false;
+  }
+  const signups = klass.signups ?? [];
+  for (const s of signups) {
+    if (s.cancelled_at) continue;
+    const sid = s.user_id ?? s.user?.id;
+    if (sid === userId) return false;
+  }
+  return true;
+}
+
+export type CreateSignupResult =
+  | { kind: "ok" }
+  | { kind: "already_booked" } // 409
+  | { kind: "no_plan" }        // 403
+  | { kind: "server_error"; status: number };
+
+// Yogo requires `user` as a STRING; integers return 500. (See yogo skill.)
+export async function createSignup(userId: number, classId: number): Promise<CreateSignupResult> {
+  const res = await yogoFetch<unknown>("class-signups", {
+    method: "POST",
+    body: JSON.stringify({ user: String(userId), class: classId, checked_in: false }),
+  });
+  if (res.ok) return { kind: "ok" };
+  if (res.status === 409) return { kind: "already_booked" };
+  if (res.status === 403) return { kind: "no_plan" };
+  return { kind: "server_error", status: res.status };
+}
