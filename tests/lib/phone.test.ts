@@ -71,6 +71,12 @@ describe("normalize", () => {
       ["+", "just plus"],
       ["12345678901234567890", "way too long"],
       ["+0", "invalid country code"],
+      ["++351912345678", "double plus prefix"],
+      ["+351+912345678", "embedded plus mid-string"],
+      ["00+351912345678", "00 followed by embedded plus"],
+      ["001234567", "00 prefix with too-short remainder"],
+      ["+1234567", "international with under-8 total digits"],
+      ["3515551234", "10-digit starting with 351 but not 12-digit E.164"],
     ];
 
     for (const [input, label] of invalidCases) {
@@ -80,6 +86,34 @@ describe("normalize", () => {
         expect(r.variants).toEqual([]);
       });
     }
+  });
+
+  describe("non-string runtime inputs (defensive guard)", () => {
+    const nonStringCases: Array<[unknown, string]> = [
+      [912345678, "number"],
+      [null, "null"],
+      [undefined, "undefined"],
+      [{}, "object"],
+      [[], "array"],
+      [true, "boolean"],
+    ];
+
+    for (const [input, label] of nonStringCases) {
+      test(`rejects ${label} without crashing`, () => {
+        const r = normalize(input as unknown as string);
+        expect(r.e164).toBeNull();
+        expect(r.variants).toEqual([]);
+      });
+    }
+  });
+
+  describe("bare 9-digit starting with 351 (regression for branch ordering)", () => {
+    test("'351999999' falls through to bare 9-digit PT branch", () => {
+      // Pre-fix the PT_COUNTRY branch caught this with only 6 subscriber digits.
+      // After fix, the 12-digit-required PT branch skips it; bare 9-digit branch picks it up.
+      const r = normalize("351999999");
+      expect(r.e164).toBe("+351351999999");
+    });
   });
 
   describe("PT landline edge cases", () => {
