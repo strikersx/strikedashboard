@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { validatePassword, createSession, getSession, deleteSession } from "@/lib/auth";
+import { isWaEnabled } from "@/lib/wa/config";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -16,7 +17,7 @@ export async function GET() {
   if (!role) {
     return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   }
-  return NextResponse.json({ role });
+  return NextResponse.json({ role, waEnabled: isWaEnabled() });
 }
 
 export async function DELETE() {

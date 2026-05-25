@@ -25,7 +25,7 @@ export function useDashboard() {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { role, loading, logout } = useAuth();
+  const { role, loading, logout, waEnabled } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
@@ -49,6 +49,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", background: "#07070a" }}>
         {/* Sticky header */}
         <div style={{ position: "sticky", top: 0, zIndex: 20 }}>
+          {!waEnabled && (
+            <div
+              role="status"
+              style={{
+                padding: "6px 18px",
+                background: "rgba(245, 158, 11, 0.18)",
+                color: "#fbbf24",
+                fontSize: 11,
+                fontWeight: 600,
+                textAlign: "center",
+                borderBottom: "1px solid rgba(245, 158, 11, 0.3)",
+              }}
+            >
+              ⏸ Bot WhatsApp pausado (WA_ENABLED=false)
+            </div>
+          )}
           <AppHeader role={role} onRefresh={handleRefresh} onLogout={logout} lastFetch={lastFetch} />
           <LiveStatus lastFetch={lastFetch} />
         </div>
