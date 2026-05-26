@@ -98,6 +98,15 @@ export async function handleCancelar(session: SessionRow): Promise<void> {
 }
 
 export async function handleCancelPick(session: SessionRow, signupIdRaw: string): Promise<void> {
+  // Locked rows come through with a `_locked` suffix (see renderAgendaList).
+  // Aluno tapped a class that starts inside the 2h cutoff — refuse politely,
+  // keep the session in AWAIT_CANCEL_PICK so they can pick a different row
+  // from the same list without re-entering the agenda.
+  if (signupIdRaw.endsWith("_locked")) {
+    await sendText(session.phoneE164, "Esta aula começa em menos de 2h. Não dá para cancelar.");
+    return;
+  }
+
   const signupId = Number(signupIdRaw);
   if (!Number.isFinite(signupId)) {
     await sendText(session.phoneE164, "Selecção inválida. Diz cancelar para começar de novo.");
