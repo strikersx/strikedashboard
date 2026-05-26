@@ -156,13 +156,7 @@ export default function WaPage() {
 
           <Section title="Sessões activas" empty="Nenhuma sessão activa.">
             {recent.sessions.map((s) => (
-              <Row
-                key={s.phoneE164}
-                time={s.updatedAt}
-                phone={s.phoneE164}
-                primary={<span style={{ color: "#fff" }}>{s.state}</span>}
-                secondary={`v${s.version}${s.pendingClassId ? ` · class=${s.pendingClassId}` : ""}${s.pendingSignupId ? ` · signup=${s.pendingSignupId}` : ""}${s.expiresAt ? ` · expira ${fmtTime(s.expiresAt)}` : ""}`}
-              />
+              <SessionRow key={s.phoneE164} session={s} onReset={load} />
             ))}
           </Section>
         </>
@@ -194,6 +188,67 @@ function MetricCard({ label, value, hint, accent }: { label: string; value: stri
       <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, color: "rgba(255,255,255,0.45)", marginBottom: 6 }}>{label}</div>
       <div className="num" style={{ fontSize: 24, fontWeight: 700, color: accent === "warn" && value !== "0" ? color : "#fff" }}>{value}</div>
       {hint && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{hint}</div>}
+    </div>
+  );
+}
+
+function SessionRow({ session, onReset }: { session: SessionRow; onReset: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const isIdle = session.state === "IDLE" && session.pendingClassId == null && session.pendingSignupId == null;
+
+  const handleReset = useCallback(async () => {
+    if (busy) return;
+    if (!window.confirm(`Repor sessão a IDLE para ${session.phoneE164}?`)) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/whatsapp/admin/reset-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneE164: session.phoneE164 }),
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      await onReset();
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, onReset, session.phoneE164]);
+
+  return (
+    <div style={{ padding: "10px 12px", borderRadius: 8, background: "#0F0F14", border: "1px solid rgba(255,255,255,0.05)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "baseline", minWidth: 0, flex: 1 }}>
+          <span className="mono" style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>{fmtTime(session.updatedAt)}</span>
+          <span className="mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{session.phoneE164}</span>
+          <span style={{ fontSize: 13, color: "#fff" }}>{session.state}</span>
+        </div>
+        <button
+          onClick={handleReset}
+          disabled={busy || isIdle}
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            padding: "5px 10px",
+            borderRadius: 6,
+            background: isIdle ? "transparent" : "rgba(245,158,11,0.18)",
+            color: isIdle ? "rgba(255,255,255,0.3)" : "#fbbf24",
+            border: `1px solid ${isIdle ? "rgba(255,255,255,0.08)" : "rgba(245,158,11,0.3)"}`,
+            cursor: busy || isIdle ? "default" : "pointer",
+          }}
+        >
+          {busy ? "..." : "Repor"}
+        </button>
+      </div>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
+        v{session.version}
+        {session.pendingClassId && ` · class=${session.pendingClassId}`}
+        {session.pendingSignupId && ` · signup=${session.pendingSignupId}`}
+        {session.expiresAt && ` · expira ${fmtTime(session.expiresAt)}`}
+      </div>
+      {err && <div style={{ fontSize: 11, color: "#fca5a5", marginTop: 4 }}>{err}</div>}
     </div>
   );
 }
