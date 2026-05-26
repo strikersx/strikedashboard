@@ -90,10 +90,6 @@ function signup(id: number, date: string, time: string, name: string): SignupLit
   return { id, klass: { id: id * 100, date, start_time: time, class_type: { name } } };
 }
 
-function agendaSignup(id: number, date: string, time: string, name: string): SignupLite {
-  return { id, klass: { id: id * 100, date, start_time: time, class_type: { name } } };
-}
-
 describe("renderAgendaList", () => {
   it("text response when empty", () => {
     expect(renderAgendaList([])).toEqual({
@@ -105,8 +101,8 @@ describe("renderAgendaList", () => {
   it("renders an interactive list for ≤10 signups (all eligible)", () => {
     const now = new Date("2026-05-26T10:00:00");
     const list = [
-      agendaSignup(1, "2026-05-26", "19:30", "Striking"),
-      agendaSignup(2, "2026-05-27", "10:00", "BJJ"),
+      signup(1, "2026-05-26", "19:30", "Striking"),
+      signup(2, "2026-05-27", "10:00", "BJJ"),
     ];
     const out = renderAgendaList(list.map((s) => ({ ...s, cancellable: true })), now);
     expect(out.type).toBe("list");
@@ -120,8 +116,8 @@ describe("renderAgendaList", () => {
   it("marks rows as locked when cancellable=false", () => {
     const now = new Date("2026-05-26T19:00:00");
     const list = [
-      { ...agendaSignup(1, "2026-05-26", "19:30", "Striking"), cancellable: false },
-      { ...agendaSignup(2, "2026-05-26", "21:30", "Boxing"), cancellable: true },
+      { ...signup(1, "2026-05-26", "19:30", "Striking"), cancellable: false },
+      { ...signup(2, "2026-05-26", "21:30", "Boxing"), cancellable: true },
     ];
     const out = renderAgendaList(list, now);
     if (out.type !== "list") throw new Error("expected list");
@@ -135,7 +131,7 @@ describe("renderAgendaList", () => {
   it("falls back to free-text DD/MM HH:MM past 10 signups", () => {
     const now = new Date("2026-05-26T10:00:00");
     const list = Array.from({ length: 11 }, (_, i) =>
-      ({ ...agendaSignup(i + 1, "2026-05-27", "19:30", "Aula"), cancellable: true }),
+      ({ ...signup(i + 1, "2026-05-27", "19:30", "Aula"), cancellable: true }),
     );
     const out = renderAgendaList(list, now);
     expect(out.type).toBe("text");
@@ -145,7 +141,7 @@ describe("renderAgendaList", () => {
 
   it("renders single-section list when only 1 signup", () => {
     const now = new Date("2026-05-26T10:00:00");
-    const list = [{ ...agendaSignup(1, "2026-05-26", "19:30", "Striking"), cancellable: true }];
+    const list = [{ ...signup(1, "2026-05-26", "19:30", "Striking"), cancellable: true }];
     const out = renderAgendaList(list, now);
     if (out.type !== "list") throw new Error("expected list");
     expect(out.sections).toHaveLength(1);

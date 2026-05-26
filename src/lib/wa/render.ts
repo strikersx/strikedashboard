@@ -120,7 +120,7 @@ export interface AgendaItem extends SignupLite {
 }
 
 export function renderAgendaList(items: AgendaItem[], _now: Date = new Date()): WaListPayload | WaTextPayload {
-  void _now; // reserved for future formatting (e.g. "em 2h 15min")
+  // _now is reserved for future relative-time labels (e.g. "em 2h 15min")
   if (items.length === 0) {
     return { type: "text", body: "Não tens aulas marcadas." };
   }
@@ -147,7 +147,7 @@ export function renderAgendaList(items: AgendaItem[], _now: Date = new Date()): 
   });
   return {
     type: "list",
-    bodyText: "Escolhe a aula para cancelar:",
+    bodyText: "As tuas próximas aulas:",
     buttonText: "Ver marcações",
     sections: [{ title: "PRÓXIMAS", rows }],
   };
