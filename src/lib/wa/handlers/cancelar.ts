@@ -54,6 +54,13 @@ export async function handleCancelar(session: SessionRow): Promise<void> {
     return;
   }
 
+  // All future signups are inside the 2h cutoff — show a useful message
+  // instead of a list of ⏰ rows the aluno cannot act on.
+  if (items.every((i) => !i.cancellable)) {
+    await sendText(phoneE164, "Não tens aulas canceláveis de momento (corte 2h antes da aula).");
+    return;
+  }
+
   // N=1 cancellable + 0 locked: skip the list and ask confirm directly.
   if (items.length === 1 && items[0].cancellable) {
     const t = await transition(session, {

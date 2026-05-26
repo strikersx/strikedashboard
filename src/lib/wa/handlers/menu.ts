@@ -1,7 +1,7 @@
 import { sendButton, sendText } from "@/lib/wa/meta";
 import { renderMenu } from "@/lib/wa/render";
 
-const OUTROS_MSG = "Entre em contato com o número de atendimento.";
+const OUTROS_MSG = "Entre em contacto com o número de atendimento.";
 
 // Top-of-funnel menu. Anything the aluno types in IDLE state triggers this
 // (dispatch.ts routes here). The 3 buttons map 1:1 to existing flows via
