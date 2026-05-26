@@ -75,3 +75,14 @@ model WaGroupMember {
   importedAt  DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model SpotifyToken {
+  id            String   @id @default("singleton")
+  ciphertext    String   // AES-256-GCM encrypted refresh token
+  iv            String   // base64 nonce
+  authTag       String   // base64 GCM tag
+  spotifyUserId String   // Spotify user that owns the playlists
+  scope         String   // granted scopes (space-separated)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
