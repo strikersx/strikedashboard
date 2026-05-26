@@ -1,0 +1,329 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+interface Member {
+  phoneE164: string;
+  savedName: string | null;
+  publicName: string | null;
+  labels: string | null;
+  isBusiness: boolean;
+}
+
+interface Sub {
+  customerId: number;
+  displayName: string;
+  phoneE164: string | null;
+  phoneRaw: string | null;
+  plan: string | null;
+}
+
+interface Report {
+  generatedAt: string;
+  totals: {
+    subsActive: number;
+    inGroup: number;
+    covered: number;
+    missingFromGroup: number;
+    extraInGroup: number;
+    subsWithoutPhone: number;
+  };
+  covered: Array<Sub & { member: Member }>;
+  missingFromGroup: Sub[];
+  extraInGroup: Member[];
+  subsWithoutPhone: Sub[];
+}
+
+interface ImportResult {
+  ok: boolean;
+  inserted: number;
+  updated: number;
+  deleted: number;
+  total: number;
+  skipped: { line: number; reason: string; raw: string }[];
+}
+
+export default function CoveragePage() {
+  const [report, setReport] = useState<Report | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const [csv, setCsv] = useState("");
+  const [importBusy, setImportBusy] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importErr, setImportErr] = useState<string | null>(null);
+  const [showImporter, setShowImporter] = useState(false);
+
+  const resync = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/whatsapp/admin/group-coverage", { cache: "no-store" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || `HTTP ${res.status}`);
+      }
+      const data = (await res.json()) as Report;
+      setReport(data);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void resync(); }, [resync]);
+
+  const runImport = useCallback(async () => {
+    if (!csv.trim() || importBusy) return;
+    setImportBusy(true);
+    setImportErr(null);
+    setImportResult(null);
+    try {
+      const res = await fetch("/api/whatsapp/admin/group-members/import", {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: csv,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setImportResult(data as ImportResult);
+      setCsv("");
+      await resync();
+    } catch (e: unknown) {
+      setImportErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setImportBusy(false);
+    }
+  }, [csv, importBusy, resync]);
+
+  return (
+    <div style={{ padding: "8px 18px 32px" }}>
+      <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", margin: "12px 0 16px", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h1 className="head" style={{ fontSize: 22, color: "#fff", margin: 0 }}>Cobertura WhatsApp</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+            Subscritores activos recorrentes × membros do grupo
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setShowImporter((v) => !v)} style={btnStyle("ghost")}>
+            {showImporter ? "Esconder importação" : "Importar lista"}
+          </button>
+          <button onClick={resync} disabled={loading} style={btnStyle("primary", loading)}>
+            {loading ? "A sincronizar..." : "Resync"}
+          </button>
+        </div>
+      </header>
+
+      {err && (
+        <div style={errBox}>{err}</div>
+      )}
+
+      {showImporter && (
+        <section style={{ marginBottom: 22, padding: 12, borderRadius: 10, background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <SectionTitle>Importar lista do grupo</SectionTitle>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", margin: "0 0 8px" }}>
+            Cola o export do WhatsApp (TSV ou CSV com cabeçalho <code>Country Code, ..., Formatted Phone, ...</code>). A lista substitui o roster actual.
+          </p>
+          <textarea
+            value={csv}
+            onChange={(e) => setCsv(e.target.value)}
+            placeholder="Country Code\tCountry Name\tPhone Number\tFormatted Phone\t..."
+            style={{
+              width: "100%",
+              minHeight: 140,
+              fontSize: 12,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              padding: 10,
+              borderRadius: 6,
+              background: "#000",
+              color: "#fff",
+              border: "1px solid rgba(255,255,255,0.1)",
+              resize: "vertical",
+            }}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+            <button onClick={runImport} disabled={importBusy || !csv.trim()} style={btnStyle("primary", importBusy || !csv.trim())}>
+              {importBusy ? "A importar..." : "Importar"}
+            </button>
+            {importErr && <span style={{ fontSize: 12, color: "#fca5a5" }}>{importErr}</span>}
+            {importResult && (
+              <span style={{ fontSize: 12, color: "#00E5A0" }}>
+                ✓ {importResult.total} linhas (+{importResult.inserted} novos · {importResult.updated} actualizados · {importResult.deleted} removidos · {importResult.skipped.length} ignorados)
+              </span>
+            )}
+          </div>
+          {importResult && importResult.skipped.length > 0 && (
+            <details style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+              <summary style={{ cursor: "pointer" }}>Linhas ignoradas ({importResult.skipped.length})</summary>
+              <ul style={{ margin: "6px 0 0", paddingLeft: 20 }}>
+                {importResult.skipped.map((s) => (
+                  <li key={s.line}>linha {s.line}: {s.reason}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
+
+      {report && (
+        <>
+          <section style={{ marginBottom: 22 }}>
+            <SectionTitle>Resumo</SectionTitle>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
+              <Metric label="SUBS ACTIVOS" value={report.totals.subsActive} hint="recorrentes" />
+              <Metric label="NO GRUPO" value={report.totals.inGroup} hint="roster importado" />
+              <Metric label="COBERTOS" value={report.totals.covered} hint="sub ∩ grupo" accent="ok" />
+              <Metric label="FALTAM CONVIDAR" value={report.totals.missingFromGroup} hint="sub mas fora do grupo" accent={report.totals.missingFromGroup > 0 ? "warn" : "ok"} />
+              <Metric label="EXTRA NO GRUPO" value={report.totals.extraInGroup} hint="no grupo sem sub activa" />
+              <Metric label="SEM TELEMÓVEL" value={report.totals.subsWithoutPhone} hint="Yogo não tem nº" accent={report.totals.subsWithoutPhone > 0 ? "warn" : "ok"} />
+            </div>
+          </section>
+
+          <Section title={`Faltam convidar (${report.missingFromGroup.length})`} empty="Todos os subscritores activos já estão no grupo 🎉" accent="warn">
+            {report.missingFromGroup.map((s) => (
+              <SubRow key={s.customerId} sub={s} />
+            ))}
+          </Section>
+
+          <Section title={`Extra no grupo (${report.extraInGroup.length})`} empty="Sem extras." muted>
+            {report.extraInGroup.map((m) => (
+              <MemberRow key={m.phoneE164} member={m} />
+            ))}
+          </Section>
+
+          <Section title={`Cobertos (${report.covered.length})`} empty="Sem subscritores cobertos." muted collapsed>
+            {report.covered.map((s) => (
+              <SubRow key={s.customerId} sub={s} member={s.member} />
+            ))}
+          </Section>
+
+          {report.subsWithoutPhone.length > 0 && (
+            <Section title={`Subscritores sem telemóvel (${report.subsWithoutPhone.length})`} empty="" accent="warn">
+              {report.subsWithoutPhone.map((s) => (
+                <SubRow key={s.customerId} sub={s} />
+              ))}
+            </Section>
+          )}
+
+          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 16 }}>
+            Gerado a {new Date(report.generatedAt).toLocaleString("pt-PT")}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h3 className="head" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "rgba(255,255,255,0.5)", margin: "0 0 8px" }}>{children}</h3>;
+}
+
+function Section({ title, empty, children, accent, muted, collapsed }: { title: string; empty: string; children: React.ReactNode; accent?: "warn"; muted?: boolean; collapsed?: boolean }) {
+  const rows = Array.isArray(children) ? children : [children];
+  const [open, setOpen] = useState(!collapsed);
+  const color = accent === "warn" ? "#fbbf24" : muted ? "rgba(255,255,255,0.5)" : "#fff";
+  return (
+    <section style={{ marginBottom: 22 }}>
+      <button onClick={() => setOpen((v) => !v)} style={{ all: "unset", cursor: "pointer", display: "block", marginBottom: 8 }}>
+        <h3 className="head" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color, margin: 0 }}>
+          {open ? "▾" : "▸"} {title}
+        </h3>
+      </button>
+      {open && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {rows.length === 0 || (rows.length === 1 && !rows[0]) ? <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{empty}</span> : rows}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Metric({ label, value, hint, accent }: { label: string; value: number; hint?: string; accent?: "ok" | "warn" }) {
+  const color = accent === "warn" ? "#fbbf24" : accent === "ok" ? "#00E5A0" : "#fff";
+  const display = accent && value > 0 ? color : "#fff";
+  return (
+    <div style={{ padding: 12, borderRadius: 10, background: "#0F0F14", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, color: "rgba(255,255,255,0.45)", marginBottom: 6 }}>{label}</div>
+      <div className="num" style={{ fontSize: 24, fontWeight: 700, color: display }}>{value}</div>
+      {hint && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{hint}</div>}
+    </div>
+  );
+}
+
+function SubRow({ sub, member }: { sub: Sub; member?: Member }) {
+  return (
+    <div style={rowStyle}>
+      <div style={{ display: "flex", gap: 10, alignItems: "baseline", minWidth: 0, flex: 1 }}>
+        <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{sub.displayName}</span>
+        {sub.plan && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{sub.plan}</span>}
+        <span className="mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{sub.phoneE164 ?? sub.phoneRaw ?? "—"}</span>
+      </div>
+      {member && (
+        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>
+          {member.savedName ?? member.publicName ?? ""}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function MemberRow({ member }: { member: Member }) {
+  const name = member.savedName ?? member.publicName ?? member.phoneE164;
+  return (
+    <div style={rowStyle}>
+      <div style={{ display: "flex", gap: 10, alignItems: "baseline", minWidth: 0, flex: 1 }}>
+        <span style={{ fontSize: 13, color: "#fff" }}>{name}</span>
+        <span className="mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{member.phoneE164}</span>
+        {member.labels && <span style={{ fontSize: 11, color: "#fbbf24" }}>{member.labels}</span>}
+        {member.isBusiness && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>business</span>}
+      </div>
+    </div>
+  );
+}
+
+const rowStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 8,
+  background: "#0F0F14",
+  border: "1px solid rgba(255,255,255,0.05)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+};
+
+const errBox: React.CSSProperties = {
+  padding: 12,
+  borderRadius: 8,
+  background: "rgba(239,68,68,0.12)",
+  color: "#fca5a5",
+  marginBottom: 16,
+  fontSize: 13,
+};
+
+function btnStyle(variant: "primary" | "ghost", disabled?: boolean): React.CSSProperties {
+  if (variant === "ghost") {
+    return {
+      fontSize: 12,
+      fontWeight: 600,
+      padding: "6px 12px",
+      borderRadius: 6,
+      background: "transparent",
+      color: "rgba(255,255,255,0.7)",
+      border: "1px solid rgba(255,255,255,0.15)",
+      cursor: "pointer",
+    };
+  }
+  return {
+    fontSize: 12,
+    fontWeight: 600,
+    padding: "6px 14px",
+    borderRadius: 6,
+    background: disabled ? "rgba(0,229,160,0.2)" : "rgba(0,229,160,0.85)",
+    color: disabled ? "rgba(255,255,255,0.5)" : "#000",
+    border: "none",
+    cursor: disabled ? "default" : "pointer",
+  };
+}

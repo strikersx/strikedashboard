@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 interface HealthResponse {
@@ -79,22 +80,39 @@ export default function WaPage() {
 
   return (
     <div style={{ padding: "8px 18px 32px" }}>
-      <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", margin: "12px 0 16px" }}>
+      <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", margin: "12px 0 16px", gap: 12, flexWrap: "wrap" }}>
         <h1 className="head" style={{ fontSize: 22, color: "#fff" }}>WhatsApp bot</h1>
-        {health && (
-          <span
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Link
+            href="/dashboard/wa/coverage"
             style={{
               fontSize: 11,
-              fontWeight: 700,
-              padding: "3px 10px",
-              borderRadius: 999,
-              background: health.enabled ? "rgba(0,229,160,0.15)" : "rgba(245,158,11,0.18)",
-              color: health.enabled ? "#00E5A0" : "#fbbf24",
+              fontWeight: 600,
+              padding: "5px 10px",
+              borderRadius: 6,
+              background: "rgba(255,255,255,0.06)",
+              color: "rgba(255,255,255,0.85)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              textDecoration: "none",
             }}
           >
-            {health.enabled ? "ATIVO" : "PAUSADO"}
-          </span>
-        )}
+            Cobertura do grupo →
+          </Link>
+          {health && (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                padding: "3px 10px",
+                borderRadius: 999,
+                background: health.enabled ? "rgba(0,229,160,0.15)" : "rgba(245,158,11,0.18)",
+                color: health.enabled ? "#00E5A0" : "#fbbf24",
+              }}
+            >
+              {health.enabled ? "ATIVO" : "PAUSADO"}
+            </span>
+          )}
+        </div>
       </header>
 
       {err && (

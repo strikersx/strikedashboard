@@ -5,8 +5,8 @@ node_modules
 .next
 out
 
-# Test coverage
-coverage
+# Test coverage (root-only — don't accidentally ignore feature dirs named "coverage")
+/coverage
 
 # Environment variables
 .env

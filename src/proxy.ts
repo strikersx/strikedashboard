@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ADMIN_ONLY_ROUTES } from "./lib/constants";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const session = request.cookies.get("striker_session");
   const { pathname } = request.nextUrl;
 
