@@ -86,3 +86,20 @@ model SpotifyToken {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+model WaSongRequest {
+  id                 String   @id @default(cuid())
+  contactId          String
+  yogoClassId        Int
+  spotifyTrackId     String
+  spotifyTrackName   String
+  spotifyArtistName  String
+  spotifyTrackUri    String
+  position           Int
+  status             String   // active | cancelled_by_unbook | swapped | rejected_genre | rejected_artist | rejected_window
+  rejectedReason     String?
+  createdAt          DateTime @default(now())
+
+  @@index([contactId, yogoClassId])
+  @@index([yogoClassId, status])
+}
