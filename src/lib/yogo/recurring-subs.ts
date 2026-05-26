@@ -1,5 +1,5 @@
 import { yogoFetch } from "@/lib/yogo/fetch";
-import { RECURRING_SUB_IDS } from "@/lib/constants";
+import { RECURRING_SUB_IDS, ALL_SUB_IDS } from "@/lib/constants";
 import { normalize } from "@/lib/phone";
 
 export interface ActiveRecurringSub {
@@ -10,6 +10,16 @@ export interface ActiveRecurringSub {
   phoneRaw: string | null;
   phoneE164: string | null;
   plan: string | null;
+}
+
+export interface YogoCustomerLite {
+  customerId: number;
+  displayName: string;
+  phoneRaw: string | null;
+  phoneE164: string | null;
+  lastPlan: string | null;
+  lastStatus: string | null;
+  paidUntil: string | null;
 }
 
 interface CustomerRow {
@@ -87,6 +97,72 @@ export async function fetchActiveRecurringSubs(): Promise<ActiveRecurringSub[]> 
       phoneE164: norm.e164,
       plan: best.membership_type_name ?? null,
     });
+  }
+  return out;
+}
+
+// Returns every customer Yogo knows about (with or without membership history).
+// Used by the WhatsApp group coverage report to distinguish "ex-client still in
+// group" from "complete stranger in group" — the user is only interested in
+// nuking the latter.
+export async function fetchAllYogoCustomers(): Promise<YogoCustomerLite[]> {
+  const queries = [
+    {
+      filters: [
+        { type: "hasNoMembership", membershipTypeId: [], onlyActiveMemberships: false },
+        { type: "hasNoClassPass", classPassTypeId: [], onlyActiveClassPasses: false },
+      ],
+      returnColumnHeaders: true,
+    },
+    {
+      filters: [{
+        type: "hasMembershipOrClassPass",
+        membershipTypeId: ALL_SUB_IDS,
+        classPassTypeId: [],
+        onlyActiveMembershipsOrClassPasses: false,
+      }],
+      returnColumnHeaders: true,
+    },
+  ];
+
+  const [membershipsRes, ...customerResponses] = await Promise.all([
+    yogoFetch<unknown>("reports/memberships-list", { method: "POST", body: JSON.stringify({}) }),
+    ...queries.map((q) => yogoFetch<unknown>("reports/customers", { method: "POST", body: JSON.stringify(q) })),
+  ]);
+
+  if (!membershipsRes.ok) throw new Error(`yogo memberships ${membershipsRes.status}`);
+  const memberships = extractRows<MembershipRow>(membershipsRes.data);
+  const byCustomer = new Map<number, MembershipRow[]>();
+  for (const m of memberships) {
+    if (typeof m.user_id !== "number") continue;
+    const list = byCustomer.get(m.user_id) ?? [];
+    list.push(m);
+    byCustomer.set(m.user_id, list);
+  }
+
+  const seen = new Set<number>();
+  const out: YogoCustomerLite[] = [];
+  for (const res of customerResponses) {
+    if (!res.ok) continue;
+    const customers = extractRows<CustomerRow>(res.data);
+    for (const c of customers) {
+      if (typeof c.id !== "number" || seen.has(c.id)) continue;
+      seen.add(c.id);
+      const raw = (c.phone ?? "").trim();
+      const norm = raw ? normalize(raw) : { e164: null, variants: [] };
+      const firstName = (c.first_name ?? "").trim();
+      const lastName = (c.last_name ?? "").trim();
+      const best = pickBest(byCustomer.get(c.id) ?? []);
+      out.push({
+        customerId: c.id,
+        displayName: [firstName, lastName].filter(Boolean).join(" ") || `#${c.id}`,
+        phoneRaw: raw || null,
+        phoneE164: norm.e164,
+        lastPlan: best?.membership_type_name ?? null,
+        lastStatus: best?.status ?? null,
+        paidUntil: best?.paid_until ?? null,
+      });
+    }
   }
   return out;
 }

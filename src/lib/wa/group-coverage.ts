@@ -1,5 +1,10 @@
 import { db } from "@/lib/db";
-import { fetchActiveRecurringSubs, type ActiveRecurringSub } from "@/lib/yogo/recurring-subs";
+import {
+  fetchActiveRecurringSubs,
+  fetchAllYogoCustomers,
+  type ActiveRecurringSub,
+  type YogoCustomerLite,
+} from "@/lib/yogo/recurring-subs";
 import { normalize } from "@/lib/phone";
 
 export interface CoverageMember {
@@ -18,29 +23,45 @@ export interface CoverageSub {
   plan: string | null;
 }
 
+export interface CoverageExClient {
+  customerId: number;
+  displayName: string;
+  phoneE164: string | null;
+  phoneRaw: string | null;
+  lastPlan: string | null;
+  lastStatus: string | null;
+  paidUntil: string | null;
+  member: CoverageMember;
+}
+
 export interface CoverageReport {
   generatedAt: string;
   totals: {
     subsActive: number;
     inGroup: number;
     covered: number;
+    coveredInactive: number;
     missingFromGroup: number;
-    extraInGroup: number;
+    unknownInGroup: number;
     subsWithoutPhone: number;
   };
   covered: Array<CoverageSub & { member: CoverageMember }>;
+  coveredInactive: CoverageExClient[];
   missingFromGroup: CoverageSub[];
-  extraInGroup: CoverageMember[];
+  unknownInGroup: CoverageMember[];
   subsWithoutPhone: CoverageSub[];
 }
 
 export async function computeCoverage(): Promise<CoverageReport> {
-  const [subs, members] = await Promise.all([
+  const [activeSubs, allCustomers, members] = await Promise.all([
     fetchActiveRecurringSubs(),
+    fetchAllYogoCustomers(),
     db.waGroupMember.findMany(),
   ]);
 
-  const memberKeyToRow = new Map<string, CoverageMember>();
+  // Index group members by every phone variant so a single lookup hits all
+  // formats Yogo might have stored (E.164, no-+, no-country-code).
+  const memberByKey = new Map<string, CoverageMember>();
   for (const m of members) {
     const cm: CoverageMember = {
       phoneE164: m.phoneE164,
@@ -49,55 +70,98 @@ export async function computeCoverage(): Promise<CoverageReport> {
       labels: m.labels,
       isBusiness: m.isBusiness,
     };
-    for (const k of keysFor(m.phoneE164)) memberKeyToRow.set(k, cm);
+    for (const k of keysFor(m.phoneE164)) memberByKey.set(k, cm);
+  }
+
+  // Active recurring sub map, keyed by every phone variant.
+  const activeByKey = new Map<string, ActiveRecurringSub>();
+  for (const s of activeSubs) {
+    if (!s.phoneE164) continue;
+    for (const k of keysFor(s.phoneE164)) activeByKey.set(k, s);
+  }
+
+  // All Yogo customers map, keyed by every phone variant. Includes the active
+  // ones — used to detect "in group, in Yogo at all".
+  const yogoByKey = new Map<string, YogoCustomerLite>();
+  for (const c of allCustomers) {
+    if (!c.phoneE164) continue;
+    for (const k of keysFor(c.phoneE164)) {
+      if (!yogoByKey.has(k)) yogoByKey.set(k, c);
+    }
   }
 
   const covered: Array<CoverageSub & { member: CoverageMember }> = [];
-  const missingFromGroup: CoverageSub[] = [];
-  const subsWithoutPhone: CoverageSub[] = [];
+  const coveredInactive: CoverageExClient[] = [];
+  const unknownInGroup: CoverageMember[] = [];
   const matchedMemberPhones = new Set<string>();
 
-  for (const s of subs) {
-    const cs = toCoverageSub(s);
-    if (!cs.phoneE164) { subsWithoutPhone.push(cs); continue; }
-    let hit: CoverageMember | undefined;
-    for (const k of keysFor(cs.phoneE164)) {
-      const h = memberKeyToRow.get(k);
-      if (h) { hit = h; break; }
-    }
-    if (hit) {
-      covered.push({ ...cs, member: hit });
-      matchedMemberPhones.add(hit.phoneE164);
-    } else {
-      missingFromGroup.push(cs);
-    }
-  }
+  for (const m of members) {
+    const variants = keysFor(m.phoneE164);
+    const activeHit = lookup(activeByKey, variants);
+    const yogoHit = lookup(yogoByKey, variants);
 
-  const extraInGroup: CoverageMember[] = members
-    .filter((m) => !matchedMemberPhones.has(m.phoneE164))
-    .map((m) => ({
+    const cm: CoverageMember = {
       phoneE164: m.phoneE164,
       savedName: m.savedName,
       publicName: m.publicName,
       labels: m.labels,
       isBusiness: m.isBusiness,
-    }));
+    };
+
+    if (activeHit) {
+      covered.push({ ...toCoverageSub(activeHit), member: cm });
+      matchedMemberPhones.add(m.phoneE164);
+    } else if (yogoHit) {
+      coveredInactive.push({
+        customerId: yogoHit.customerId,
+        displayName: yogoHit.displayName,
+        phoneE164: yogoHit.phoneE164,
+        phoneRaw: yogoHit.phoneRaw,
+        lastPlan: yogoHit.lastPlan,
+        lastStatus: yogoHit.lastStatus,
+        paidUntil: yogoHit.paidUntil,
+        member: cm,
+      });
+      matchedMemberPhones.add(m.phoneE164);
+    } else {
+      unknownInGroup.push(cm);
+    }
+  }
+
+  const missingFromGroup: CoverageSub[] = [];
+  const subsWithoutPhone: CoverageSub[] = [];
+  for (const s of activeSubs) {
+    const cs = toCoverageSub(s);
+    if (!cs.phoneE164) { subsWithoutPhone.push(cs); continue; }
+    const hit = lookup(memberByKey, keysFor(cs.phoneE164));
+    if (!hit) missingFromGroup.push(cs);
+  }
 
   return {
     generatedAt: new Date().toISOString(),
     totals: {
-      subsActive: subs.length,
+      subsActive: activeSubs.length,
       inGroup: members.length,
       covered: covered.length,
+      coveredInactive: coveredInactive.length,
       missingFromGroup: missingFromGroup.length,
-      extraInGroup: extraInGroup.length,
+      unknownInGroup: unknownInGroup.length,
       subsWithoutPhone: subsWithoutPhone.length,
     },
     covered: covered.sort(byName),
+    coveredInactive: coveredInactive.sort(byName),
     missingFromGroup: missingFromGroup.sort(byName),
-    extraInGroup: extraInGroup.sort((a, b) => (a.savedName ?? a.publicName ?? "").localeCompare(b.savedName ?? b.publicName ?? "")),
+    unknownInGroup: unknownInGroup.sort((a, b) => (a.savedName ?? a.publicName ?? "").localeCompare(b.savedName ?? b.publicName ?? "")),
     subsWithoutPhone: subsWithoutPhone.sort(byName),
   };
+}
+
+function lookup<T>(map: Map<string, T>, keys: string[]): T | undefined {
+  for (const k of keys) {
+    const v = map.get(k);
+    if (v) return v;
+  }
+  return undefined;
 }
 
 function toCoverageSub(s: ActiveRecurringSub): CoverageSub {
@@ -114,8 +178,6 @@ function byName(a: { displayName: string }, b: { displayName: string }): number 
   return a.displayName.localeCompare(b.displayName, "pt", { sensitivity: "base" });
 }
 
-// Two phones match if their normalised variants intersect. Pre-expand each
-// stored phone into all its variants so lookups stay O(1).
 function keysFor(e164: string): string[] {
   const n = normalize(e164);
   return n.variants.length > 0 ? n.variants : [e164];
