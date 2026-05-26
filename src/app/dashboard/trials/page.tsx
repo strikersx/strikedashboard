@@ -75,20 +75,24 @@ export default function TrialsPage() {
     try {
       const today = new Date();
 
-      // Current week: today to end of week (Sunday)
-      const dayOfWeek = today.getDay();
-      const daysUntilEndOfWeek = 6 - dayOfWeek; // 6 = Sunday
-      const endOfCurrentWeek = new Date(today);
-      endOfCurrentWeek.setDate(today.getDate() + daysUntilEndOfWeek);
+      // Current week: Monday to Saturday
+      const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+      const startOfCurrentWeek = new Date(today);
+      startOfCurrentWeek.setDate(today.getDate() - daysFromMonday);
+      startOfCurrentWeek.setHours(0, 0, 0, 0);
+
+      const endOfCurrentWeek = new Date(startOfCurrentWeek);
+      endOfCurrentWeek.setDate(startOfCurrentWeek.getDate() + 5);
       endOfCurrentWeek.setHours(23, 59, 59, 999);
 
-      // Next week: Monday to Sunday
-      const startOfNextWeek = new Date(endOfCurrentWeek);
-      startOfNextWeek.setDate(endOfCurrentWeek.getDate() + 1);
-      startOfNextWeek.setHours(0, 0, 0, 0);
+      // Next week: Monday to Saturday
+      const startOfNextWeek = new Date(startOfCurrentWeek);
+      startOfNextWeek.setDate(startOfCurrentWeek.getDate() + 7);
 
       const endOfNextWeek = new Date(startOfNextWeek);
-      endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
+      endOfNextWeek.setDate(startOfNextWeek.getDate() + 5);
       endOfNextWeek.setHours(23, 59, 59, 999);
 
       const formatDate = (d: Date): string => {
@@ -100,7 +104,7 @@ export default function TrialsPage() {
 
       // Fetch both weeks
       const [currentWeekData, nextWeekData] = await Promise.all([
-        fetchYogo(`classes?startDate=${formatDate(today)}&endDate=${formatDate(endOfCurrentWeek)}&class_type[]=${TRIAL_CLASS_TYPE_ID}&populate[]=class_type&populate[]=teachers&populate[]=signup_count&populate[]=signups&populate[]=signups.user&sort[]=date ASC&sort[]=start_time ASC`),
+        fetchYogo(`classes?startDate=${formatDate(startOfCurrentWeek)}&endDate=${formatDate(endOfCurrentWeek)}&class_type[]=${TRIAL_CLASS_TYPE_ID}&populate[]=class_type&populate[]=teachers&populate[]=signup_count&populate[]=signups&populate[]=signups.user&sort[]=date ASC&sort[]=start_time ASC`),
         fetchYogo(`classes?startDate=${formatDate(startOfNextWeek)}&endDate=${formatDate(endOfNextWeek)}&class_type[]=${TRIAL_CLASS_TYPE_ID}&populate[]=class_type&populate[]=teachers&populate[]=signup_count&populate[]=signups&populate[]=signups.user&sort[]=date ASC&sort[]=start_time ASC`),
       ]);
 
