@@ -41,15 +41,15 @@ describe("isCancellable", () => {
     expect(isCancellable(s)).toBe(false);
   });
 
-  it("rejects classes starting in <15min (cutoff)", () => {
+  it("rejects classes starting in <2h (cutoff)", () => {
     const now = new Date("2026-05-26T19:00:00");
-    const s = makeSignup("2026-05-26", "19:10", {});
+    const s = makeSignup("2026-05-26", "20:59", {});  // 1h59m away — 1min inside cutoff
     expect(isCancellable(s, now)).toBe(false);
   });
 
-  it("accepts classes starting exactly past the 15-min cutoff", () => {
+  it("accepts classes starting 1min past the 2h cutoff", () => {
     const now = new Date("2026-05-26T19:00:00");
-    const s = makeSignup("2026-05-26", "19:16", {});
+    const s = makeSignup("2026-05-26", "21:01", {});  // 2h01m away — 1min past cutoff
     expect(isCancellable(s, now)).toBe(true);
   });
 

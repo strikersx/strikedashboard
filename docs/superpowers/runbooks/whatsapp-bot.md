@@ -115,12 +115,23 @@ ORDER BY receivedAt DESC
 LIMIT 20;
 ```
 
+## Cancel workflow — 2h cutoff
+
+The cancel flow enforces a 2h cutoff before class start time. Customers cannot cancel within 2 hours of the class start. This gives the studio time to reassign the slot if needed.
+
+**When testing or troubleshooting:**
+- A class starting at 19:30 can be cancelled until 17:30 (2h earlier).
+- Attempts to cancel after 17:30 will fail with "Cancelar não é possível menos de 2h antes" (or similar user-friendly message).
+- If a customer claims they should have been able to cancel, check Yogo's `class.start_time` and the timestamp of their cancellation request.
+
 ## End-to-end smoke (after a deploy)
 
 1. From a phone whose number is in Yogo, message the bot any text.
 2. Check `/api/whatsapp/health` — `last24h.eventsByKind` should tick.
-3. If the bot replies "echo: …" (current Slice 2 behaviour), the pipeline is live.
-4. Once Slice 3 lands, replace step 3 with: send `reserva` → expect class list.
+3. Bot replies with a 3-button menu (Reservar / Minha agenda / Outros) — pipeline is live.
+4. Tap **Reservar** → expect the class list (today + tomorrow's bookable classes).
+5. Tap **Minha agenda** → expect your future bookings; rows starting in <2h show with a ⏰ prefix and reply "menos de 2h" if tapped.
+6. Tap **Outros** → expect the "Entre em contato com o número de atendimento." reply.
 
 ## Escalation
 

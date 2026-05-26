@@ -87,9 +87,9 @@ export async function listFutureSignups(userId: number, fromDate: string, toDate
   return Array.isArray(res.data) ? (res.data as YogoSignup[]) : [];
 }
 
-// 15min cutoff guards against cancellations after a class has effectively
-// started — Yogo would still accept, but the student loses the paid slot.
-const CANCEL_CUTOFF_MS = 15 * 60 * 1000;
+// 2h cutoff so the studio can reassign the slot if someone cancels late.
+// Yogo's admin UI has no cutoff — Marcelo can still override manually.
+const CANCEL_CUTOFF_MS = 2 * 60 * 60 * 1000;
 
 export function isCancellable(signup: YogoSignup, now: Date = new Date()): boolean {
   if (signup.cancelled_at) return false;
