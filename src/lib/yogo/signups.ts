@@ -19,7 +19,15 @@ export async function listClasses(startDate: string, endDate: string): Promise<Y
   params.append("populate[]", "signups");
   const res = await yogoFetch<unknown>(`classes?${params.toString()}`);
   if (!res.ok) return [];
-  return Array.isArray(res.data) ? (res.data as YogoClass[]) : [];
+  // Yogo wraps the classes endpoint in { responseType, populate, classes: [...] }
+  // (verified against live API 2026-05-26). Other endpoints return bare arrays;
+  // accept both shapes defensively.
+  if (Array.isArray(res.data)) return res.data as YogoClass[];
+  if (res.data && typeof res.data === "object") {
+    const wrapped = (res.data as { classes?: unknown }).classes;
+    if (Array.isArray(wrapped)) return wrapped as YogoClass[];
+  }
+  return [];
 }
 
 // Filter helper: keeps only classes that are not cancelled, have a seat free,

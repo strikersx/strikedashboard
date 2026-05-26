@@ -1,3 +1,4 @@
+import { db } from "@/lib/db";
 import { isReservarEnabled, isCancelarEnabled } from "@/lib/wa/config";
 import { parseIntent, type MetaInboundMessage } from "@/lib/wa/parser";
 import { isExpired, loadSession, resetToIdle } from "@/lib/wa/session";
@@ -25,7 +26,18 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
     // Reservar flow disabled -> behave like Slice 2 echo so we don't break
     // existing demos while the flag is off.
     const body = message.text?.body ?? "";
-    await sendText(phoneE164, `echo: ${body}`);
+    const result = await sendText(phoneE164, `echo: ${body}`);
+    if (!result.ok) {
+      await db.waEvent
+        .create({
+          data: {
+            kind: "SEND_FAIL",
+            phoneE164,
+            meta: JSON.stringify({ status: result.status, body: result.body.slice(0, 300) }),
+          },
+        })
+        .catch(() => undefined);
+    }
     return;
   }
 

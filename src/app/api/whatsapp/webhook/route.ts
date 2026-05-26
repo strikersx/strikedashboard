@@ -87,8 +87,19 @@ export async function POST(req: NextRequest) {
       for (const item of toDispatch) {
         try {
           await dispatch(item.phoneE164, item.msg);
-        } catch {
-          // Errors here surface in Vercel logs; nothing user-facing.
+        } catch (err) {
+          // Surface in WaEvent so a runbook query can find dispatch failures
+          // without having to grep Vercel logs.
+          const message = err instanceof Error ? err.message : String(err);
+          await db.waEvent
+            .create({
+              data: {
+                kind: "DISPATCH_FAIL",
+                phoneE164: item.phoneE164,
+                meta: JSON.stringify({ error: message.slice(0, 500) }),
+              },
+            })
+            .catch(() => undefined);
         }
       }
     });

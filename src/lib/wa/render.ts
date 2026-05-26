@@ -42,41 +42,50 @@ export interface WaButtonPayload {
 
 const MAX_ROW_TITLE = 24;
 const MAX_ROW_DESC = 72;
-const MAX_ROWS_PER_SECTION = 10;
+// WhatsApp interactive lists allow at most 10 ROWS in total across all
+// sections (verified live 2026-05-26 via Meta error 131009 "Total row
+// count exceed max allowed count: 10" — the per-section "10 rows" limit
+// in older docs is a per-section cap, but the GRAND TOTAL is also 10).
+const MAX_TOTAL_ROWS = 10;
 
 export function renderClassList(
   classes: YogoClassLite[],
   todayDate: string,
   tomorrowDate: string,
 ): WaListPayload | WaTextPayload {
-  const today = classes.filter((c) => c.date === todayDate).slice(0, MAX_ROWS_PER_SECTION);
-  const tomorrow = classes.filter((c) => c.date === tomorrowDate).slice(0, MAX_ROWS_PER_SECTION);
+  const todayAll = classes.filter((c) => c.date === todayDate);
+  const tomorrowAll = classes.filter((c) => c.date === tomorrowDate);
 
-  const overflowToday = classes.filter((c) => c.date === todayDate).length > MAX_ROWS_PER_SECTION;
-  const overflowTomorrow = classes.filter((c) => c.date === tomorrowDate).length > MAX_ROWS_PER_SECTION;
-
-  if (today.length === 0 && tomorrow.length === 0) {
+  if (todayAll.length === 0 && tomorrowAll.length === 0) {
     return { type: "text", body: "Sem aulas disponíveis hoje ou amanhã." };
   }
 
-  if (overflowToday || overflowTomorrow) {
-    const sample = (today[0] ?? tomorrow[0])?.start_time ?? "19:30";
+  // Prioritise today; fill the remaining slots with tomorrow. If today alone
+  // overflows MAX_TOTAL_ROWS, we drop to a free-text instruction since the
+  // user can't fit a meaningful picker.
+  if (todayAll.length > MAX_TOTAL_ROWS) {
+    const sample = todayAll[0]?.start_time ?? "19:30";
     return {
       type: "text",
-      body: `Temos muitas aulas. Escreve a hora (ex: ${sample}) para reservar directamente.`,
+      body: `Hoje temos ${todayAll.length} aulas. Escreve a hora (ex: ${sample}) para reservar directamente.`,
     };
   }
+
+  const today = todayAll;
+  const tomorrowBudget = Math.max(0, MAX_TOTAL_ROWS - today.length);
+  const tomorrow = tomorrowAll.slice(0, tomorrowBudget);
+  const tomorrowDropped = tomorrowAll.length - tomorrow.length;
 
   const sections: WaListSection[] = [];
   if (today.length > 0) sections.push({ title: "HOJE", rows: today.map(toRow) });
   if (tomorrow.length > 0) sections.push({ title: "AMANHÃ", rows: tomorrow.map(toRow) });
 
-  return {
-    type: "list",
-    bodyText: "Escolhe a aula para reservar:",
-    buttonText: "Ver aulas",
-    sections,
-  };
+  const bodyText =
+    tomorrowDropped > 0
+      ? `Escolhe a aula. (+${tomorrowDropped} de amanhã não cabem; escreve a hora para essas)`
+      : "Escolhe a aula para reservar:";
+
+  return { type: "list", bodyText, buttonText: "Ver aulas", sections };
 }
 
 export function renderConfirmBook(klass: YogoClassLite): WaButtonPayload {
@@ -98,35 +107,28 @@ export interface SignupLite {
 }
 
 // Cancel picker. N=1 still shows a confirm prompt (spec: mandatory confirm
-// even for a single signup, so a stray tap doesn't burn the slot). N=2-10
-// list. N>10 free-text fallback handled by the caller.
+// even for a single signup, so a stray tap doesn't burn the slot). N=2..10
+// list. N>10 falls back to free-text DD/MM HH:MM (Meta's 10-total-row cap).
 export function renderCancelList(signups: SignupLite[]): WaListPayload | WaTextPayload {
   if (signups.length === 0) {
     return { type: "text", body: "Sem aulas marcadas nos próximos dias." };
   }
-  if (signups.length > MAX_ROWS_PER_SECTION * 2) {
+  if (signups.length > MAX_TOTAL_ROWS) {
     return {
       type: "text",
       body: "Tens muitas marcações. Escreve a data e hora (DD/MM HH:MM) da aula a cancelar.",
     };
   }
-  const rows = signups.slice(0, MAX_ROWS_PER_SECTION * 2).map((s) => ({
+  const rows = signups.map((s) => ({
     id: String(s.id),
     title: truncate(`${s.klass.start_time} ${s.klass.class_type?.name ?? "Aula"}`, MAX_ROW_TITLE),
     description: truncate(s.klass.date, MAX_ROW_DESC),
   }));
-  const sections: WaListSection[] =
-    rows.length <= MAX_ROWS_PER_SECTION
-      ? [{ title: "PRÓXIMAS", rows }]
-      : [
-          { title: "PRÓXIMAS", rows: rows.slice(0, MAX_ROWS_PER_SECTION) },
-          { title: "DEPOIS", rows: rows.slice(MAX_ROWS_PER_SECTION) },
-        ];
   return {
     type: "list",
     bodyText: "Escolhe a aula para cancelar:",
     buttonText: "Ver marcações",
-    sections,
+    sections: [{ title: "PRÓXIMAS", rows }],
   };
 }
 
