@@ -22,6 +22,7 @@ const SECTIONS: Section[] = [
   { id: "leads",    label: "Leads",                sub: "Interessados que se cadastraram",    icon: "🎯", href: "/dashboard/leads" },
   { id: "receber",  label: "A Receber",            sub: "Calendário de vencimentos mensais",  icon: "📅", href: "/dashboard/a-receber" },
   { id: "saude",    label: "Saúde dos Clientes",   sub: "Inadimplentes, pausados, churn, PT migrar", icon: "🩺", href: "/dashboard/saude-clientes" },
+  { id: "wa",       label: "WhatsApp bot",         sub: "Saúde do bot, eventos e sessões activas",   icon: "💬", href: "/dashboard/wa" },
 ];
 
 export default function MorePage() {
