@@ -106,24 +106,45 @@ export interface SignupLite {
   klass: YogoClassLite;
 }
 
-// Cancel picker. N=1 still shows a confirm prompt (spec: mandatory confirm
-// even for a single signup, so a stray tap doesn't burn the slot). N=2..10
-// list. N>10 falls back to free-text DD/MM HH:MM (Meta's 10-total-row cap).
-export function renderCancelList(signups: SignupLite[]): WaListPayload | WaTextPayload {
-  if (signups.length === 0) {
-    return { type: "text", body: "Sem aulas marcadas nos próximos dias." };
+// Agenda picker — used by the "Minha agenda" menu button. Shows ALL future
+// bookings; rows whose class starts inside the cancel cutoff (see
+// CANCEL_CUTOFF_MS in src/lib/yogo/signups.ts) are flagged with a ⏰ prefix
+// and a `_locked` row-id suffix so the click handler can refuse politely
+// instead of attempting a Yogo DELETE.
+//
+// Caller passes a `cancellable` flag per signup (typically derived from
+// `isCancellable(signup, now)` in src/lib/yogo/signups.ts) — the renderer
+// stays pure and side-effect free.
+export interface AgendaItem extends SignupLite {
+  cancellable: boolean;
+}
+
+export function renderAgendaList(items: AgendaItem[], _now: Date = new Date()): WaListPayload | WaTextPayload {
+  void _now; // reserved for future formatting (e.g. "em 2h 15min")
+  if (items.length === 0) {
+    return { type: "text", body: "Não tens aulas marcadas." };
   }
-  if (signups.length > MAX_TOTAL_ROWS) {
+  if (items.length > MAX_TOTAL_ROWS) {
     return {
       type: "text",
       body: "Tens muitas marcações. Escreve a data e hora (DD/MM HH:MM) da aula a cancelar.",
     };
   }
-  const rows = signups.map((s) => ({
-    id: String(s.id),
-    title: truncate(`${s.klass.start_time} ${s.klass.class_type?.name ?? "Aula"}`, MAX_ROW_TITLE),
-    description: truncate(s.klass.date, MAX_ROW_DESC),
-  }));
+  const rows = items.map((item) => {
+    const baseTitle = `${item.klass.start_time} ${item.klass.class_type?.name ?? "Aula"}`;
+    if (item.cancellable) {
+      return {
+        id: String(item.id),
+        title: truncate(baseTitle, MAX_ROW_TITLE),
+        description: truncate(item.klass.date, MAX_ROW_DESC),
+      };
+    }
+    return {
+      id: `${item.id}_locked`,
+      title: truncate(`⏰ ${baseTitle}`, MAX_ROW_TITLE),
+      description: "em breve · não cancelável",
+    };
+  });
   return {
     type: "list",
     bodyText: "Escolhe a aula para cancelar:",

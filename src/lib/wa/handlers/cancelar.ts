@@ -9,8 +9,9 @@ import {
 } from "@/lib/yogo/signups";
 import { sendText, sendButton, sendList } from "@/lib/wa/meta";
 import {
-  renderCancelList,
+  renderAgendaList,
   renderConfirmCancel,
+  type AgendaItem,
   type SignupLite,
   type YogoClassLite,
 } from "@/lib/wa/render";
@@ -18,7 +19,7 @@ import { parseDateTime } from "@/lib/wa/parser";
 import { resetToIdle, transition, ttlFromNow, type SessionRow } from "@/lib/wa/session";
 
 const NO_PLAN_LOOKUP = "Não te encontrámos no sistema. Escreve directamente ao Marcelo.";
-const NO_SIGNUPS = "Não tens marcações canceláveis (cutoff 15min antes da aula).";
+const NO_SIGNUPS = "Não tens aulas marcadas.";
 const CANCELLED_OK = "Cancelado.";
 const ERR_NOT_FOUND = "Aula já não está disponível para cancelar.";
 const ERR_SERVER = "Sistema temporariamente indisponível. Tenta outra vez em 1min.";
@@ -38,31 +39,38 @@ export async function handleCancelar(session: SessionRow): Promise<void> {
   const from = isoDate(0);
   const to = isoDate(FUTURE_LOOKAHEAD_DAYS);
   const all = await listFutureSignups(customer.id, from, to);
-  const cancellable = all.filter((s) => isCancellable(s)).map(toSignupLite);
+  // Build the agenda items: include EVERY future signup, but mark each as
+  // cancellable or locked. The renderer turns locked items into ⏰ rows.
+  const now = new Date();
+  const items: AgendaItem[] = all
+    .filter((s) => !s.cancelled_at && typeof s.class === "object")
+    .map((s) => ({
+      ...toSignupLite(s),
+      cancellable: isCancellable(s, now),
+    }));
 
-  if (cancellable.length === 0) {
+  if (items.length === 0) {
     await sendText(phoneE164, NO_SIGNUPS);
     return;
   }
 
-  // N=1: still ask for confirm (spec: mandatory even for single signup).
-  if (cancellable.length === 1) {
+  // N=1 cancellable + 0 locked: skip the list and ask confirm directly.
+  if (items.length === 1 && items[0].cancellable) {
     const t = await transition(session, {
       state: "AWAIT_CONFIRM_CANCEL",
-      pendingSignupId: cancellable[0].id,
+      pendingSignupId: items[0].id,
       expiresAt: ttlFromNow(),
     });
     if (!t.ok) {
       await db.waEvent.create({ data: { kind: "SESSION_RACE", phoneE164 } });
       return;
     }
-    await sendButton(phoneE164, renderConfirmCancel(cancellable[0]));
+    await sendButton(phoneE164, renderConfirmCancel(items[0]));
     return;
   }
 
-  // N=2..20: interactive list.
-  // N>20: free-text DD/MM HH:MM fallback.
-  const payload = renderCancelList(cancellable);
+  // N=2..10 interactive list (mixed eligibility); >10 → free-text DD/MM HH:MM.
+  const payload = renderAgendaList(items, now);
   if (payload.type === "text") {
     const t = await transition(session, {
       state: "AWAIT_CANCEL_PICK",
