@@ -144,6 +144,20 @@ export function renderConfirmCancel(signup: SignupLite): WaButtonPayload {
   };
 }
 
+// Top-of-funnel menu. WhatsApp button payload caps title at 20c and supports
+// max 3 buttons — both honoured here.
+export function renderMenu(): WaButtonPayload {
+  return {
+    type: "button",
+    bodyText: "Olá! O que precisas?",
+    buttons: [
+      { id: "btn_reservar", title: "Reservar" },
+      { id: "btn_agenda", title: "Minha agenda" },
+      { id: "btn_outros", title: "Outros" },
+    ],
+  };
+}
+
 function toRow(klass: YogoClassLite): WaListRow {
   const name = klass.class_type?.name ?? "Aula";
   const title = truncate(`${klass.start_time} ${name}`, MAX_ROW_TITLE);

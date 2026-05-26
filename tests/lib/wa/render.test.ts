@@ -4,6 +4,7 @@ import {
   renderClassList,
   renderConfirmBook,
   renderConfirmCancel,
+  renderMenu,
   type SignupLite,
   type YogoClassLite,
 } from "../../../src/lib/wa/render";
@@ -127,5 +128,18 @@ describe("renderConfirmCancel", () => {
     expect(out.buttons.map((b) => b.id)).toEqual(["confirm_cancel", "abort_cancel"]);
     expect(out.bodyText).toContain("Striking");
     expect(out.bodyText).toContain("19:30");
+  });
+});
+
+describe("renderMenu", () => {
+  it("renders a 3-button menu with the expected ids and titles", () => {
+    const out = renderMenu();
+    expect(out.type).toBe("button");
+    expect(out.bodyText).toBe("Olá! O que precisas?");
+    expect(out.buttons).toEqual([
+      { id: "btn_reservar", title: "Reservar" },
+      { id: "btn_agenda", title: "Minha agenda" },
+      { id: "btn_outros", title: "Outros" },
+    ]);
   });
 });
