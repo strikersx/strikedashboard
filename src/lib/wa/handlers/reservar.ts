@@ -43,7 +43,24 @@ export async function handleReservar(session: SessionRow): Promise<void> {
     return;
   }
 
-  await sendList(phoneE164, payload);
+  const send = await sendList(phoneE164, payload);
+  if (!send.ok) {
+    await db.waEvent
+      .create({
+        data: {
+          kind: "SEND_FAIL",
+          phoneE164,
+          meta: JSON.stringify({
+            where: "handleReservar.sendList",
+            status: send.status,
+            body: send.body.slice(0, 400),
+            sectionCount: payload.sections.length,
+            rowCount: payload.sections.reduce((n, s) => n + s.rows.length, 0),
+          }),
+        },
+      })
+      .catch(() => undefined);
+  }
 }
 
 export async function handleClassPick(session: SessionRow, classIdRaw: string): Promise<void> {
