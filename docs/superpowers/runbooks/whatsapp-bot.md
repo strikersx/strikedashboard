@@ -128,9 +128,10 @@ The cancel flow enforces a 2h cutoff before class start time. Customers cannot c
 
 1. From a phone whose number is in Yogo, message the bot any text.
 2. Check `/api/whatsapp/health` — `last24h.eventsByKind` should tick.
-3. If the bot replies with a menu (Slice 2+), the pipeline is live.
-4. Test `reserva` → expect class list.
-5. Test `cancelar` → expect eligible classes (excluding those within 2h of start time).
+3. Bot replies with a 3-button menu (Reservar / Minha agenda / Outros) — pipeline is live.
+4. Tap **Reservar** → expect the class list (today + tomorrow's bookable classes).
+5. Tap **Minha agenda** → expect your future bookings; rows starting in <2h show with a ⏰ prefix and reply "menos de 2h" if tapped.
+6. Tap **Outros** → expect the "Entre em contato com o número de atendimento." reply.
 
 ## Escalation
 
