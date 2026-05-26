@@ -61,3 +61,17 @@ model WaEvent {
 
   @@index([kind, createdAt])
 }
+
+model WaGroupMember {
+  phoneE164   String   @id
+  savedName   String?
+  publicName  String?
+  groupName   String?
+  isMyContact Boolean  @default(false)
+  isBusiness  Boolean  @default(false)
+  isBlocked   Boolean  @default(false)
+  labels      String?
+  countryCode String?
+  importedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
