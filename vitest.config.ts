@@ -20,7 +20,7 @@ export default defineConfig({
         "src/lib/wa/dispatch.ts",
         "src/lib/wa/handlers/reservar.ts",
         "src/lib/wa/handlers/cancelar.ts",
-        "src/lib/wa/handlers/fallback.ts",
+        "src/lib/wa/handlers/menu.ts",
       ],
       reporter: ["text", "html"],
     },
