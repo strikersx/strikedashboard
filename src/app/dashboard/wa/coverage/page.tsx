@@ -18,19 +18,32 @@ interface Sub {
   plan: string | null;
 }
 
+interface ExClient {
+  customerId: number;
+  displayName: string;
+  phoneE164: string | null;
+  phoneRaw: string | null;
+  lastPlan: string | null;
+  lastStatus: string | null;
+  paidUntil: string | null;
+  member: Member;
+}
+
 interface Report {
   generatedAt: string;
   totals: {
     subsActive: number;
     inGroup: number;
     covered: number;
+    coveredInactive: number;
     missingFromGroup: number;
-    extraInGroup: number;
+    unknownInGroup: number;
     subsWithoutPhone: number;
   };
   covered: Array<Sub & { member: Member }>;
+  coveredInactive: ExClient[];
   missingFromGroup: Sub[];
-  extraInGroup: Member[];
+  unknownInGroup: Member[];
   subsWithoutPhone: Sub[];
 }
 
@@ -174,9 +187,10 @@ export default function CoveragePage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
               <Metric label="SUBS ACTIVOS" value={report.totals.subsActive} hint="recorrentes" />
               <Metric label="NO GRUPO" value={report.totals.inGroup} hint="roster importado" />
-              <Metric label="COBERTOS" value={report.totals.covered} hint="sub ∩ grupo" accent="ok" />
+              <Metric label="COBERTOS" value={report.totals.covered} hint="sub activa ∩ grupo" accent="ok" />
+              <Metric label="EX-CLIENTES" value={report.totals.coveredInactive} hint="no Yogo + grupo, sub inactiva" />
               <Metric label="FALTAM CONVIDAR" value={report.totals.missingFromGroup} hint="sub mas fora do grupo" accent={report.totals.missingFromGroup > 0 ? "warn" : "ok"} />
-              <Metric label="EXTRA NO GRUPO" value={report.totals.extraInGroup} hint="no grupo sem sub activa" />
+              <Metric label="DESCONHECIDOS" value={report.totals.unknownInGroup} hint="no grupo, nem no Yogo" accent={report.totals.unknownInGroup > 0 ? "warn" : "ok"} />
               <Metric label="SEM TELEMÓVEL" value={report.totals.subsWithoutPhone} hint="Yogo não tem nº" accent={report.totals.subsWithoutPhone > 0 ? "warn" : "ok"} />
             </div>
           </section>
@@ -187,9 +201,15 @@ export default function CoveragePage() {
             ))}
           </Section>
 
-          <Section title={`Extra no grupo (${report.extraInGroup.length})`} empty="Sem extras." muted>
-            {report.extraInGroup.map((m) => (
+          <Section title={`Desconhecidos no grupo (${report.unknownInGroup.length})`} empty="Todos no grupo estão no Yogo." accent="warn">
+            {report.unknownInGroup.map((m) => (
               <MemberRow key={m.phoneE164} member={m} />
+            ))}
+          </Section>
+
+          <Section title={`Ex-clientes no grupo (${report.coveredInactive.length})`} empty="Sem ex-clientes no grupo." muted collapsed>
+            {report.coveredInactive.map((c) => (
+              <ExClientRow key={c.customerId} ex={c} />
             ))}
           </Section>
 
@@ -265,6 +285,27 @@ function SubRow({ sub, member }: { sub: Sub; member?: Member }) {
           {member.savedName ?? member.publicName ?? ""}
         </span>
       )}
+    </div>
+  );
+}
+
+function ExClientRow({ ex }: { ex: ExClient }) {
+  const statusColor = ex.lastStatus === "active" ? "#00E5A0"
+    : ex.lastStatus === "cancelled_running" ? "#fbbf24"
+    : ex.lastStatus === "ended" ? "#fca5a5"
+    : "rgba(255,255,255,0.5)";
+  return (
+    <div style={rowStyle}>
+      <div style={{ display: "flex", gap: 10, alignItems: "baseline", minWidth: 0, flex: 1, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{ex.displayName}</span>
+        <span className="mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{ex.phoneE164 ?? ex.phoneRaw ?? "—"}</span>
+        {ex.lastPlan && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>{ex.lastPlan}</span>}
+        {ex.lastStatus && <span style={{ fontSize: 11, color: statusColor }}>{ex.lastStatus}</span>}
+        {ex.paidUntil && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>até {ex.paidUntil}</span>}
+      </div>
+      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>
+        {ex.member.savedName ?? ex.member.publicName ?? ""}
+      </span>
     </div>
   );
 }
