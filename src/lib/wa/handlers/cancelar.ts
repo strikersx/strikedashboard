@@ -147,7 +147,7 @@ export async function handleCancelPickByText(session: SessionRow, text: string):
   if (!parsed) {
     await sendText(
       session.phoneE164,
-      "Formato inválido. Escreve a data e hora como 25/05 19:30.",
+      "Formato inválido. Escreve a data e hora como 25/05 19:30, ou diz reserva para recomeçar.",
     );
     return;
   }

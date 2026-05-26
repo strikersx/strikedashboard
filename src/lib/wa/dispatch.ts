@@ -56,18 +56,23 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
   // so the handler runs in a clean IDLE-equivalent.
   if (intent.kind === "button") {
     if (intent.id === "btn_reservar") {
-      session = await ensureIdle(session);
-      return handleReservar(session);
+      const s = await ensureIdle(session, phoneE164);
+      if (!s) return;
+      return handleReservar(s);
     }
     if (intent.id === "btn_agenda") {
-      session = await ensureIdle(session);
-      return handleCancelar(session);
+      const s = await ensureIdle(session, phoneE164);
+      if (!s) return;
+      return handleCancelar(s);
     }
     if (intent.id === "btn_outros") {
-      session = await ensureIdle(session);
+      const s = await ensureIdle(session, phoneE164);
+      if (!s) return;
       return handleOutros(phoneE164);
     }
-    // Otherwise fall through to flow-specific button routing below.
+    // Otherwise fall through — flow-specific buttons (confirm_book,
+    // cancel_book, confirm_cancel, abort_cancel) are handled inside the
+    // state switch below, not here. (Fix M-1: clarify why we fall through.)
   }
 
   switch (session.state) {
@@ -101,15 +106,21 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
 
     case "IDLE":
     default:
-      // Anything in IDLE → menu. Keywords ('reserva', 'cancelar') hit this
-      // branch too because parseIntent still classifies them as text-like
-      // intents, but we deliberately ignore the kind here.
+      // Anything in IDLE → menu. Keyword intents ("reservar", "cancelar")
+      // still exist in parseIntent but are not matched anywhere above —
+      // they fall through to here and get sendMenu, which is the new UX.
       return sendMenu(phoneE164);
   }
 }
 
-async function ensureIdle(session: SessionRow): Promise<SessionRow> {
+async function ensureIdle(session: SessionRow, phoneE164: string): Promise<SessionRow | null> {
   if (session.state === "IDLE") return session;
   const reset = await resetToIdle(session);
-  return reset.ok ? reset.session : session;
+  if (!reset.ok) {
+    await db.waEvent
+      .create({ data: { kind: "SESSION_RACE", phoneE164 } })
+      .catch(() => undefined);
+    return null;
+  }
+  return reset.session;
 }
