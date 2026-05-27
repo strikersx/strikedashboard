@@ -126,6 +126,28 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
     return;
   }
 
+  if (result.outcome === "reject_explicit") {
+    await db.waSongRequest.create({
+      data: {
+        contactId: phoneE164,
+        yogoClassId,
+        spotifyTrackId: trackId,
+        spotifyTrackName: result.trackName,
+        spotifyArtistName: result.artistName,
+        spotifyTrackUri: `spotify:track:${trackId}`,
+        position: -1,
+        status: "rejected_explicit",
+        rejectedReason: "explicit content",
+      },
+    });
+    await sendText(
+      phoneE164,
+      `Esta música tem conteúdo explícito e não pode tocar na aula. Tenta outra 🥷`
+    );
+    await resetToIdle(session);
+    return;
+  }
+
   // Accept → ask for confirmation
   const t = await transition(session, {
     state: "AWAIT_SONG_CONFIRM",

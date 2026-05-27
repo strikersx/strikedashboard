@@ -77,7 +77,7 @@ describe("evaluateTrack", () => {
   });
 
   function mockSpotify(
-    track: { id: string; name: string; uri: string; artists: Array<{ id: string; name?: string }> },
+    track: { id: string; name: string; uri: string; explicit?: boolean; artists: Array<{ id: string; name?: string }> },
     artists: Record<string, { genres: string[]; name: string }>
   ) {
     const enc = encryptToken("rt");
@@ -198,5 +198,66 @@ describe("evaluateTrack", () => {
 
     const result = await evaluateTrack("t6");
     expect(result.outcome).toBe("accept");
+  });
+
+  it("rejects explicit content outright", async () => {
+    genreFindManyMock.mockResolvedValue([]);
+    artistFindManyMock.mockResolvedValue([]);
+
+    mockSpotify(
+      { id: "t7", name: "Foo", uri: "spotify:track:t7", explicit: true, artists: [{ id: "a" }] },
+      { a: { name: "Some Artist", genres: ["rock"] } }
+    );
+
+    const result = await evaluateTrack("t7");
+    expect(result.outcome).toBe("reject_explicit");
+  });
+
+  it("rejects when keyword matches ARTIST NAME (not just genre)", async () => {
+    // Artist has no banned genre, but the artist name contains a blocked keyword
+    genreFindManyMock.mockResolvedValue([{ keyword: "anitta", active: true }]);
+    artistFindManyMock.mockResolvedValue([]);
+
+    mockSpotify(
+      { id: "t8", name: "Some Track", uri: "spotify:track:t8", artists: [{ id: "anitta-id" }] },
+      { "anitta-id": { name: "Anitta", genres: ["pop"] } }
+    );
+
+    const result = await evaluateTrack("t8");
+    expect(result.outcome).toBe("reject_genre");
+    if (result.outcome === "reject_genre") {
+      expect(result.matchedKeyword).toBe("anitta");
+      expect(result.matchedAgainst).toBe("artist_name");
+    }
+  });
+
+  it("rejects when keyword matches TRACK NAME (not just genre or artist)", async () => {
+    genreFindManyMock.mockResolvedValue([{ keyword: "putaria", active: true }]);
+    artistFindManyMock.mockResolvedValue([]);
+
+    mockSpotify(
+      { id: "t9", name: "Festa de Putaria", uri: "spotify:track:t9", artists: [{ id: "x" }] },
+      { x: { name: "Unknown Artist", genres: ["pop"] } }
+    );
+
+    const result = await evaluateTrack("t9");
+    expect(result.outcome).toBe("reject_genre");
+    if (result.outcome === "reject_genre") {
+      expect(result.matchedAgainst).toBe("track_name");
+    }
+  });
+
+  it("accept track ranks below explicit-reject even when explicit AND blocked", async () => {
+    // Explicit is the FIRST check, so even if other keywords would match, explicit wins
+    genreFindManyMock.mockResolvedValue([{ keyword: "pagode", active: true }]);
+    artistFindManyMock.mockResolvedValue([]);
+
+    mockSpotify(
+      { id: "t10", name: "Foo", uri: "spotify:track:t10", explicit: true, artists: [{ id: "x" }] },
+      { x: { name: "X", genres: ["samba pagode"] } }
+    );
+
+    const result = await evaluateTrack("t10");
+    expect(result.outcome).toBe("reject_explicit");
   });
 });

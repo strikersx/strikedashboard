@@ -6,18 +6,41 @@ import { PrismaLibSql } from "@prisma/adapter-libsql";
 config({ path: ".env.local" });
 
 const SEED_KEYWORDS = [
+  // Genres — Brazilian
   "funk carioca", "funk ostentação", "funk mtg", "funk 150",
   "funk melody", "brega funk", "funk consciente",
+  "funk putaria", "porn funk", "mandelão",
   "pagode", "samba pagode",
   "axé", "axe music",
-  "forró eletrônico", "forro eletronico", "forró pé de serra",
-  "sertanejo universitário", "sertanejo romântico", "modão",
+  "forró eletrônico", "forro eletronico", "forró pé de serra", "forró",
+  "sertanejo universitário", "sertanejo romântico", "modão", "sofrência",
   "pisadinha", "brega",
-  "pimba", "kizomba", "tarraxinha", "fado", "morna",
-  "bossa nova", "smooth jazz",
-  "lullaby", "children's music", "kids music",
-  "meditation", "sleep", "ambient sleep",
-  "karaoke", "worship", "christian worship",
+
+  // Genres — Portuguese / Lusophone
+  "pimba", "kizomba", "tarraxinha", "semba", "fado", "fadista", "morna",
+  "portuguese hip hop", "rap português", "trap português",
+
+  // Genres — Latin (não-cardio)
+  "reggaeton", "bachata", "salsa", "cumbia",
+
+  // Genres — chill / sleep / kids
+  "bossa nova", "smooth jazz", "mpb lenta",
+  "lo-fi", "chillhop", "chillwave", "new age", "yoga music",
+  "sound healing", "ambient", "ambient sleep", "sleep", "meditation",
+  "lullaby", "children's music", "kids music", "infantil", "disney",
+  "karaoke", "karaokê",
+  "worship", "christian worship",
+
+  // Artist names (matched against artist.name)
+  "anitta", "ludmilla", "marília mendonça", "gusttavo lima",
+  "ed sheeran", "adele", "shawn mendes",
+  "mariza", "camané", "antónio zambujo",
+  "nelson freitas", "anselmo ralph", "yuri da cunha",
+  "dillaz", "bispo", "prodigio", "piruka", "slow j",
+
+  // Track-name keywords (matched against track.name)
+  "putaria", "desabafo",
+  "remix lento", "versão acústica", "acústico",
 ];
 
 async function main() {
