@@ -98,6 +98,21 @@ export default function WaPage() {
           >
             Cobertura do grupo →
           </Link>
+          <Link
+            href="/dashboard/wa/blocklist"
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "5px 10px",
+              borderRadius: 6,
+              background: "rgba(255,255,255,0.06)",
+              color: "rgba(255,255,255,0.85)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              textDecoration: "none",
+            }}
+          >
+            Blocklist →
+          </Link>
           {health && (
             <span
               style={{

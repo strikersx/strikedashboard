@@ -17,6 +17,7 @@ import {
 } from "@/lib/wa/render";
 import { parseDateTime } from "@/lib/wa/parser";
 import { resetToIdle, transition, ttlFromNow, type SessionRow } from "@/lib/wa/session";
+import { removeSongOnCancel } from "@/lib/wa/handlers/song-request";
 
 const NO_PLAN_LOOKUP = "Não te encontrámos no sistema. Escreve directamente ao Marcelo.";
 const NO_SIGNUPS = "Não tens aulas marcadas.";
@@ -201,10 +202,36 @@ export async function handleConfirmCancel(session: SessionRow): Promise<void> {
     await resetToIdle(session);
     return;
   }
+
+  // Resolve the Yogo class id before deleting so we can clean up the song request.
+  // Best-effort: if lookup fails for any reason, yogoClassId stays undefined and
+  // song removal is simply skipped.
+  let yogoClassId: number | undefined;
+  try {
+    const customer = await findCustomerByPhone(phoneE164);
+    if (customer) {
+      const signups = await listFutureSignups(customer.id, isoDate(0), isoDate(FUTURE_LOOKAHEAD_DAYS));
+      const match = signups.find((s) => s.id === session.pendingSignupId);
+      if (match && typeof match.class === "object" && match.class !== null) {
+        yogoClassId = (match.class as { id: number }).id;
+      }
+    }
+  } catch {
+    // Non-fatal: carry on with cancellation.
+  }
+
   const result = await deleteSignup(session.pendingSignupId);
   if (result.kind === "ok") {
     await db.waEvent.create({ data: { kind: "CANCEL_OK", phoneE164 } });
     await sendText(phoneE164, CANCELLED_OK);
+    // Best-effort: remove the song request for this class if one exists.
+    if (yogoClassId !== undefined) {
+      try {
+        await removeSongOnCancel(phoneE164, yogoClassId);
+      } catch {
+        // Never fail a cancel because of song removal.
+      }
+    }
   } else if (result.kind === "not_found") {
     await db.waEvent.create({
       data: { kind: "CANCEL_FAIL", phoneE164, meta: JSON.stringify({ subkind: "not_found" }) },

@@ -66,3 +66,15 @@ export function parseDateTime(input: string): DateTimeParts | null {
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
   return { day, month, hour, minute };
 }
+
+const SPOTIFY_TRACK_URL_RE = /https?:\/\/open\.spotify\.com\/(?:intl-[a-z]+\/)?track\/([a-zA-Z0-9]+)/;
+const SPOTIFY_TRACK_URI_RE = /spotify:track:([a-zA-Z0-9]+)/;
+
+export function parseSpotifyTrackId(input: string): string | null {
+  if (!input) return null;
+  const urlMatch = input.match(SPOTIFY_TRACK_URL_RE);
+  if (urlMatch) return urlMatch[1];
+  const uriMatch = input.match(SPOTIFY_TRACK_URI_RE);
+  if (uriMatch) return uriMatch[1];
+  return null;
+}

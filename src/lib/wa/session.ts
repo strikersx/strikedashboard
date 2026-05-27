@@ -5,13 +5,18 @@ export type WaSessionState =
   | "AWAIT_CLASS_PICK"
   | "AWAIT_CONFIRM_BOOK"
   | "AWAIT_CANCEL_PICK"
-  | "AWAIT_CONFIRM_CANCEL";
+  | "AWAIT_CONFIRM_CANCEL"
+  | "AWAIT_SONG_INPUT"
+  | "AWAIT_SONG_CONFIRM"
+  | "AWAIT_SWAP_CONFIRM";
 
 export interface SessionRow {
   phoneE164: string;
   state: string;
   pendingClassId: number | null;
   pendingSignupId: number | null;
+  pendingSongClassId: number | null;
+  pendingTrackId: string | null;
   expiresAt: Date | null;
   version: number;
 }
@@ -46,6 +51,8 @@ export interface TransitionPatch {
   state?: WaSessionState;
   pendingClassId?: number | null;
   pendingSignupId?: number | null;
+  pendingSongClassId?: number | null;
+  pendingTrackId?: string | null;
   expiresAt?: Date | null;
 }
 
@@ -74,6 +81,8 @@ export async function resetToIdle(current: SessionRow): Promise<TransitionResult
     state: "IDLE",
     pendingClassId: null,
     pendingSignupId: null,
+    pendingSongClassId: null,
+    pendingTrackId: null,
     expiresAt: null,
   });
 }

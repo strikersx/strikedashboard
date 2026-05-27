@@ -1,4 +1,5 @@
 import { yogoFetch } from "@/lib/yogo/fetch";
+import { findCustomerByPhone } from "@/lib/yogo/lookup";
 
 export interface YogoClass {
   id: number;
@@ -117,4 +118,52 @@ export async function deleteSignup(signupId: number): Promise<DeleteSignupResult
   if (res.ok) return { kind: "ok" };
   if (res.status === 404) return { kind: "not_found" };
   return { kind: "server_error", status: res.status };
+}
+
+export interface UserBooking {
+  yogoClassId: number;
+  className: string;
+  startsAtIso: string;
+}
+
+// Returns the user's upcoming group-class bookings within the next 24 hours.
+// "Group class" is indicated by seats > 1 (consistent with Task 4's isGroupClass
+// pattern). Returns an empty array when the phone isn't found or there are no
+// signups in the window.
+export async function userBookingsNext24h(phoneE164: string): Promise<UserBooking[]> {
+  const customer = await findCustomerByPhone(phoneE164);
+  if (!customer) return [];
+
+  const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const fromDate = now.toISOString().slice(0, 10);  // "YYYY-MM-DD"
+  const toDate = in24h.toISOString().slice(0, 10);
+
+  const signups = await listFutureSignups(customer.id, fromDate, toDate);
+
+  const results: UserBooking[] = [];
+  for (const signup of signups) {
+    if (signup.cancelled_at) continue;
+    const klass = typeof signup.class === "object" ? signup.class as YogoClass : null;
+    if (!klass) continue;
+
+    // Group class filter: seats > 1
+    if (typeof klass.seats === "number" && klass.seats <= 1) continue;
+
+    const start = parseClassStart(klass);
+    if (!start) continue;
+
+    // Must be in the next 24h window (start > now AND start <= now+24h)
+    if (start.getTime() <= now.getTime()) continue;
+    if (start.getTime() > in24h.getTime()) continue;
+
+    const className = klass.class_type?.name ?? "Aula";
+    results.push({
+      yogoClassId: klass.id,
+      className,
+      startsAtIso: start.toISOString(),
+    });
+  }
+  return results;
 }

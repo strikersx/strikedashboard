@@ -29,9 +29,11 @@ model WaInbound {
 model WaSession {
   phoneE164       String    @id
   state           String    @default("IDLE")
-  pendingClassId  Int?
-  pendingSignupId Int?
-  expiresAt       DateTime?
+  pendingClassId     Int?
+  pendingSignupId    Int?
+  pendingSongClassId Int?
+  pendingTrackId     String?
+  expiresAt          DateTime?
   version         Int       @default(0)
   updatedAt       DateTime  @updatedAt
   contact         WaContact @relation(fields: [phoneE164], references: [phoneE164])
@@ -74,4 +76,57 @@ model WaGroupMember {
   countryCode String?
   importedAt  DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model SpotifyToken {
+  id            String   @id @default("singleton")
+  ciphertext    String   // AES-256-GCM encrypted refresh token
+  iv            String   // base64 nonce
+  authTag       String   // base64 GCM tag
+  spotifyUserId String   // Spotify user that owns the playlists
+  scope         String   // granted scopes (space-separated)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model WaSongRequest {
+  id                 String   @id @default(cuid())
+  contactId          String
+  yogoClassId        Int
+  spotifyTrackId     String
+  spotifyTrackName   String
+  spotifyArtistName  String
+  spotifyTrackUri    String
+  position           Int
+  status             String   // active | cancelled_by_unbook | swapped | rejected_genre | rejected_artist | rejected_window
+  rejectedReason     String?
+  createdAt          DateTime @default(now())
+
+  @@index([contactId, yogoClassId])
+  @@index([yogoClassId, status])
+}
+
+model WaClassPlaylist {
+  id                String   @id @default(cuid())
+  yogoClassId       Int      @unique
+  spotifyPlaylistId String
+  createdAt         DateTime @default(now())
+  requestCount      Int      @default(0)
+  locked            Boolean  @default(false)
+}
+
+model WaBlockedGenre {
+  id        String   @id @default(cuid())
+  keyword   String   @unique
+  addedBy   String
+  addedAt   DateTime @default(now())
+  active    Boolean  @default(true)
+}
+
+model WaBlockedArtist {
+  spotifyArtistId String   @id
+  artistName      String
+  reason          String?
+  addedBy         String
+  addedAt         DateTime @default(now())
 }

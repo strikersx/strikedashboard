@@ -16,7 +16,9 @@ import {
   handleCancelar,
   handleConfirmCancel,
 } from "@/lib/wa/handlers/cancelar";
-import { handleOutros, sendMenu } from "@/lib/wa/handlers/menu";
+import { handleContacto, handleOutros, sendMenu } from "@/lib/wa/handlers/menu";
+import { handlePlaylistList } from "@/lib/wa/handlers/playlist-list";
+import { handleSongInput, handleSongConfirm, handleSwapConfirm } from "@/lib/wa/handlers/song-request";
 
 // Dispatch routes an inbound WhatsApp message based on (1) menu button IDs,
 // (2) the session's current state, and (3) the intent kind from the parser.
@@ -70,6 +72,12 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
       if (!s) return;
       return handleOutros(phoneE164);
     }
+    if (intent.id === "btn_playlist") {
+      return handlePlaylistList(phoneE164);
+    }
+    if (intent.id === "btn_contacto") {
+      return handleContacto(phoneE164);
+    }
     // Otherwise fall through — flow-specific buttons (confirm_book,
     // cancel_book, confirm_cancel, abort_cancel) are handled inside the
     // state switch below, not here. (Fix M-1: clarify why we fall through.)
@@ -103,6 +111,22 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
       if (intent.kind === "button" && intent.id === "abort_cancel") return handleAbortCancel(session);
       await resetToIdle(session);
       return sendMenu(phoneE164);
+
+    case "AWAIT_SONG_INPUT":
+      if (intent.kind === "text") return handleSongInput(session, intent.body);
+      // Non-text (buttons, list picks) while awaiting a song → hint
+      await sendText(phoneE164, "Manda o link do Spotify da música (ex: https://open.spotify.com/track/...) ou diz 'não' para ignorar.");
+      return;
+
+    case "AWAIT_SONG_CONFIRM":
+      if (intent.kind === "text") return handleSongConfirm(session, intent.body);
+      await sendText(phoneE164, "Responde 'sim' ou 'não'.");
+      return;
+
+    case "AWAIT_SWAP_CONFIRM":
+      if (intent.kind === "text") return handleSwapConfirm(session, intent.body);
+      await sendText(phoneE164, "Responde 'sim' ou 'não'.");
+      return;
 
     case "IDLE":
     default:

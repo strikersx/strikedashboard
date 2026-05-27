@@ -4,6 +4,7 @@ import { listClasses, bookableFor, createSignup } from "@/lib/yogo/signups";
 import { sendText, sendList, sendButton } from "@/lib/wa/meta";
 import { renderClassList, renderConfirmBook, type YogoClassLite } from "@/lib/wa/render";
 import { transition, resetToIdle, ttlFromNow, type SessionRow } from "@/lib/wa/session";
+import { offerSongRequest } from "@/lib/wa/handlers/song-request";
 
 const FALLBACK_LOOKUP_MISS = "Não te encontrámos no sistema. Escreve directamente ao Marcelo.";
 const NO_BOOKABLE = "Sem aulas disponíveis para reservar nas próximas 48h.";
@@ -116,6 +117,11 @@ export async function handleConfirmBook(session: SessionRow): Promise<void> {
   if (result.kind === "ok") {
     await db.waEvent.create({ data: { kind: "BOOKING_OK", ...phoneMeta } });
     await sendText(phoneE164, BOOKED_OK);
+    try {
+      await offerSongRequest(phoneE164, session.pendingClassId);
+    } catch {
+      // Best-effort offer — never fail a booking because of a song offer.
+    }
   } else if (result.kind === "already_booked") {
     await db.waEvent.create({
       data: { kind: "BOOKING_OK", phoneE164, meta: JSON.stringify({ subkind: "already_booked" }) },
