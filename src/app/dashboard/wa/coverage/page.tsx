@@ -167,7 +167,6 @@ export default function CoveragePage() {
     if (testBusy || !testPhone.trim()) return;
     setTestBusy(true);
     setTestResult(null);
-    setBulkErr(null);
     try {
       const res = await fetch("/api/whatsapp/admin/group-invite/bulk", {
         method: "POST",
@@ -302,7 +301,7 @@ export default function CoveragePage() {
                 {testBusy ? "..." : "Enviar teste"}
               </button>
               {testResult && (
-                <span style={{ fontSize: 12, color: testResult.outcome === "sent" ? "#00E5A0" : testResult.outcome === "skipped" ? "#fbbf24" : "#fca5a5" }}>
+                <span style={{ fontSize: 12, color: testResult.outcome === "sent" ? "#00E5A0" : testResult.outcome === "skipped" ? "#fbbf24" : "#fca5a5", wordBreak: "break-word", maxWidth: "100%" }}>
                   {testResult.outcome}{testResult.reason ? ` · ${testResult.reason}` : ""}{testResult.metaError ? ` · ${testResult.metaError}` : ""}
                 </span>
               )}
