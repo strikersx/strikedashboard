@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { listClasses } from "@/lib/yogo/signups";
+import { listClasses, parseClassStart } from "@/lib/yogo/signups";
 import { createClassPlaylist } from "@/lib/spotify/playlist-manager";
 
 // Verify request is from Vercel Cron (Authorization: Bearer ${CRON_SECRET})
@@ -28,15 +28,20 @@ export async function GET(req: Request) {
   const today = isoDate(0);
   const tomorrow = isoDate(1);
   const all = await listClasses(today, tomorrow);
-  const todays = all.filter(isGroupClass).filter((k) => k.start_time?.startsWith(today));
+  const todays = all.filter(isGroupClass).filter((k) => k.date === today);
 
   const results: { yogoClassId: number; created: boolean; error?: string }[] = [];
   for (const k of todays) {
+    const startsAt = parseClassStart(k);
+    if (!startsAt) {
+      results.push({ yogoClassId: k.id, created: false, error: "missing date/start_time" });
+      continue;
+    }
     try {
       const r = await createClassPlaylist({
         yogoClassId: k.id,
         className: k.class_type?.name ?? `Class ${k.id}`,
-        startsAtIso: k.start_time,
+        startsAtIso: startsAt.toISOString(),
       });
       results.push({ yogoClassId: k.id, created: r.created });
     } catch (err) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { listClasses } from "@/lib/yogo/signups";
+import { listClasses, parseClassStart } from "@/lib/yogo/signups";
 
 // Verify request is from Vercel Cron (Authorization: Bearer ${CRON_SECRET})
 function isAuthorized(req: Request): boolean {
@@ -20,14 +20,15 @@ export async function GET(req: Request) {
 
   const today = isoDate(0);
   const tomorrow = isoDate(1);
-  const all = (await listClasses(today, tomorrow)) as any[];
+  const all = await listClasses(today, tomorrow);
   const now = Date.now();
   const cutoff = 10 * 60 * 1000;
 
   let locked = 0;
   for (const k of all) {
-    const start = new Date(k.start_time).getTime();
-    if (now - start >= cutoff) {
+    const startsAt = parseClassStart(k);
+    if (!startsAt) continue;
+    if (now - startsAt.getTime() >= cutoff) {
       const r = await db.waClassPlaylist.updateMany({
         where: { yogoClassId: k.id, locked: false },
         data: { locked: true },
