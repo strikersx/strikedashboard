@@ -1,0 +1,26 @@
+iteration	dimension	classification	severity	title	parent
+1	happy_path	new	LOW	All gates green 32 phones all new sends	-
+2	edge_case	new	MEDIUM	missingFromGroup is empty 0 phones	-
+3	edge_case	new	HIGH	missingFromGroup count = WA_BULK_MAX exactly	-
+4	edge_case	new	HIGH	missingFromGroup count = WA_BULK_MAX + 1	#3
+5	edge_case	new	MEDIUM	All 32 phones have a recent WaOutbound everyone skipped	-
+6	edge_case	new	HIGH	Phone with lastInvite exactly 30 days ago	-
+7	edge_case	new	MEDIUM	Phone with lastInvite 29d 23h 59m ago	#6
+8	edge_case	new	MEDIUM	force=true bypasses 30-day window	-
+9	edge_case	new	LOW	dryRun=true with all preflight green	-
+10	edge_case	new	LOW	dryRun=true on preflight failure G2 off	#9
+11	edge_case	new	HIGH	phoneE164 in client body rejected unexpected_recipient_field	-
+12	edge_case	new	MEDIUM	All recipients have phoneE164 null after recovery	-
+13	edge_case	new	MEDIUM	Subscriber displayName is empty string	-
+14	edge_case	new	LOW	Subscriber displayName is CJK unicode	#13
+15	error_path	new	CRITICAL	G3 fails WA_GROUP_INVITE_URL unset	-
+16	error_path	new	CRITICAL	G4 fails URL shape ok fingerprint mismatch	#15
+17	temporal	new	MEDIUM	Fingerprint confirmed exactly 24h ago	-
+18	concurrent	new	CRITICAL	Two admins click Convidar todos within 1s	-
+19	concurrent	new	HIGH	Admin clicks Pause mid-batch at 7/32	-
+20	concurrent	new	HIGH	Resume after pause picks up remaining 25	#19
+21	integration	new	MEDIUM	Meta returns 429 on phone 5 retry succeeds	-
+22	integration	new	CRITICAL	Meta returns 401 mid-batch token revoked	#21
+23	integration	new	CRITICAL	Meta template status preflight G10 returns REJECTED	-
+24	recovery	new	HIGH	Network throw between deleteMany and sendTemplate	-
+25	state_transition	new	MEDIUM	Two batches in sequence second waits for first	-
