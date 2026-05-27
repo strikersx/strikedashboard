@@ -1,0 +1,133 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Use vi.hoisted so mock variables are available when vi.mock factory runs (hoisted to top)
+const {
+  sendTextMock,
+  userBookingsNext24hMock,
+  waClassPlaylistFindManyMock,
+} = vi.hoisted(() => ({
+  sendTextMock: vi.fn(),
+  userBookingsNext24hMock: vi.fn(),
+  waClassPlaylistFindManyMock: vi.fn(),
+}));
+
+vi.mock("@/lib/wa/meta", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/wa/meta")>();
+  return { ...actual, sendText: sendTextMock };
+});
+
+vi.mock("@/lib/yogo/signups", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/yogo/signups")>();
+  return { ...actual, userBookingsNext24h: userBookingsNext24hMock };
+});
+
+vi.mock("@/lib/db", () => {
+  const dbMock = {
+    waClassPlaylist: {
+      findMany: waClassPlaylistFindManyMock,
+    },
+  };
+  return { db: dbMock };
+});
+
+import { handlePlaylistList } from "@/lib/wa/handlers/playlist-list";
+
+const PHONE = "+351912345678";
+
+const PLAYLIST_ROW = (yogoClassId: number, spotifyPlaylistId: string) => ({
+  id: `cuid-${yogoClassId}`,
+  yogoClassId,
+  spotifyPlaylistId,
+  requestCount: 0,
+  locked: false,
+  createdAt: new Date(),
+});
+
+describe("handlePlaylistList", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sendTextMock.mockResolvedValue({ ok: true, status: 200, body: "" });
+  });
+
+  it("no bookings → sends NO_CLASSES message", async () => {
+    userBookingsNext24hMock.mockResolvedValueOnce([]);
+
+    await handlePlaylistList(PHONE);
+
+    expect(sendTextMock).toHaveBeenCalledOnce();
+    expect(sendTextMock).toHaveBeenCalledWith(
+      PHONE,
+      "Sem aulas em grupo reservadas nas próximas 24h. Reserva uma com 'reserva' primeiro 🥷",
+    );
+    expect(waClassPlaylistFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("two bookings with playlists → message contains both class names and spotify URLs", async () => {
+    userBookingsNext24hMock.mockResolvedValueOnce([
+      { yogoClassId: 10, className: "Striking", startsAtIso: "2026-05-27T19:30:00.000Z" },
+      { yogoClassId: 20, className: "BJJ", startsAtIso: "2026-05-27T21:00:00.000Z" },
+    ]);
+    waClassPlaylistFindManyMock.mockResolvedValueOnce([
+      PLAYLIST_ROW(10, "playlist-abc"),
+      PLAYLIST_ROW(20, "playlist-xyz"),
+    ]);
+
+    await handlePlaylistList(PHONE);
+
+    expect(sendTextMock).toHaveBeenCalledOnce();
+    const msg: string = sendTextMock.mock.calls[0][1];
+    expect(msg).toContain("Striking");
+    expect(msg).toContain("https://open.spotify.com/playlist/playlist-abc");
+    expect(msg).toContain("BJJ");
+    expect(msg).toContain("https://open.spotify.com/playlist/playlist-xyz");
+  });
+
+  it("bookings exist but no WaClassPlaylist rows → sends NO_CLASSES message", async () => {
+    userBookingsNext24hMock.mockResolvedValueOnce([
+      { yogoClassId: 10, className: "Striking", startsAtIso: "2026-05-27T19:30:00.000Z" },
+    ]);
+    waClassPlaylistFindManyMock.mockResolvedValueOnce([]);
+
+    await handlePlaylistList(PHONE);
+
+    expect(sendTextMock).toHaveBeenCalledOnce();
+    expect(sendTextMock).toHaveBeenCalledWith(
+      PHONE,
+      "Sem aulas em grupo reservadas nas próximas 24h. Reserva uma com 'reserva' primeiro 🥷",
+    );
+  });
+
+  it("mix: one booking has playlist, another doesn't → only includes the one with playlist", async () => {
+    userBookingsNext24hMock.mockResolvedValueOnce([
+      { yogoClassId: 10, className: "Striking", startsAtIso: "2026-05-27T19:30:00.000Z" },
+      { yogoClassId: 20, className: "BJJ", startsAtIso: "2026-05-27T21:00:00.000Z" },
+    ]);
+    // Only one playlist row
+    waClassPlaylistFindManyMock.mockResolvedValueOnce([
+      PLAYLIST_ROW(10, "playlist-abc"),
+    ]);
+
+    await handlePlaylistList(PHONE);
+
+    expect(sendTextMock).toHaveBeenCalledOnce();
+    const msg: string = sendTextMock.mock.calls[0][1];
+    expect(msg).toContain("Striking");
+    expect(msg).toContain("https://open.spotify.com/playlist/playlist-abc");
+    expect(msg).not.toContain("BJJ");
+  });
+
+  it("queried db with yogoClassIds from bookings", async () => {
+    userBookingsNext24hMock.mockResolvedValueOnce([
+      { yogoClassId: 42, className: "MMA", startsAtIso: "2026-05-27T19:30:00.000Z" },
+    ]);
+    waClassPlaylistFindManyMock.mockResolvedValueOnce([
+      PLAYLIST_ROW(42, "playlist-mma"),
+    ]);
+
+    await handlePlaylistList(PHONE);
+
+    expect(waClassPlaylistFindManyMock).toHaveBeenCalledWith({
+      where: { yogoClassId: { in: [42] } },
+    });
+  });
+});

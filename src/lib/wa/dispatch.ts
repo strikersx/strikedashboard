@@ -16,7 +16,8 @@ import {
   handleCancelar,
   handleConfirmCancel,
 } from "@/lib/wa/handlers/cancelar";
-import { handleOutros, sendMenu } from "@/lib/wa/handlers/menu";
+import { handleContacto, handleOutros, sendMenu } from "@/lib/wa/handlers/menu";
+import { handlePlaylistList } from "@/lib/wa/handlers/playlist-list";
 import { handleSongInput, handleSongConfirm, handleSwapConfirm } from "@/lib/wa/handlers/song-request";
 
 // Dispatch routes an inbound WhatsApp message based on (1) menu button IDs,
@@ -70,6 +71,12 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
       const s = await ensureIdle(session, phoneE164);
       if (!s) return;
       return handleOutros(phoneE164);
+    }
+    if (intent.id === "btn_playlist") {
+      return handlePlaylistList(phoneE164);
+    }
+    if (intent.id === "btn_contacto") {
+      return handleContacto(phoneE164);
     }
     // Otherwise fall through — flow-specific buttons (confirm_book,
     // cancel_book, confirm_cancel, abort_cancel) are handled inside the

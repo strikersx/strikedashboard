@@ -179,6 +179,19 @@ export function renderMenu(): WaButtonPayload {
   };
 }
 
+// "Outros" sub-menu: lets the student pick between Playlist and Contacto.
+// WhatsApp caps button titles at 20c (honoured) and max 3 buttons (2 used).
+export function renderOutrosMenu(): WaButtonPayload {
+  return {
+    type: "button",
+    bodyText: "O que precisas?",
+    buttons: [
+      { id: "btn_playlist", title: "Playlist da aula" },
+      { id: "btn_contacto", title: "Contacto" },
+    ],
+  };
+}
+
 function toRow(klass: YogoClassLite): WaListRow {
   const name = klass.class_type?.name ?? "Aula";
   const title = truncate(`${klass.start_time} ${name}`, MAX_ROW_TITLE);
