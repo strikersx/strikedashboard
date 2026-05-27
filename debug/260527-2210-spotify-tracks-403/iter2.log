@@ -1,0 +1,27 @@
+
+=== DELETE /items — does it work? ===
+[DEL-items] DELETE /v1/playlists/4Jeo7HJlZf5e4BcaWznetC/items → 400
+    body[200]: {"error": {"status": 400, "message": "No uris provided" } }
+
+=== PUT /items (reorder/replace) ===
+[PUT-items-reorder] PUT /v1/playlists/4Jeo7HJlZf5e4BcaWznetC/items → 200
+    body[200]: {"snapshot_id":"AAAAAsSnxRjUnl6/gvCfWmnMGL7NU9Ym"}
+
+=== GET /items with fields param (matches our fetchAllBaseTracks) ===
+[GET-items-fields] GET /v1/playlists/5fXQZ7Cb6YCwglfXjy4lhO/items?fields=items(track(uri)),next&limit=5 → 200
+    body[200]: {"items":[{},{},{},{},{}],"next":"https://api.spotify.com/v1/playlists/5fXQZ7Cb6YCwglfXjy4lhO/items?offset=5&limit=5&fields=items(track(uri)),next&locale=*"}
+
+=== GET /items full response shape — verify track.uri pattern still in items ===
+[GET-items-full] GET /v1/playlists/5fXQZ7Cb6YCwglfXjy4lhO/items?limit=2 → 200
+    body[200]: {"href":"https://api.spotify.com/v1/playlists/5fXQZ7Cb6YCwglfXjy4lhO/items?offset=0&limit=2&locale=*","items":[{"added_at":"2026-03-15T21:19:31Z","added_by":{"external_urls":{"spotify":"https://open.s
+    top-level keys: href, items, limit, next, offset, previous, total
+    first item keys: added_at, added_by, is_local, primary_color, item, video_thumbnail
+    track shape: MISSING
+    first track.uri: undefined
+    first track.type: undefined
+
+=== POST /items then DELETE /items roundtrip cleanup ===
+[POST-roundtrip] POST /v1/playlists/4Jeo7HJlZf5e4BcaWznetC/items → 201
+    body[200]: {"snapshot_id":"AAAAA6j7Vu2nIgKXZJPLL/4mRk7y+vZN"}
+[DELETE-roundtrip] DELETE /v1/playlists/4Jeo7HJlZf5e4BcaWznetC/items → 400
+    body[200]: {"error": {"status": 400, "message": "No uris provided" } }

@@ -22,20 +22,23 @@ function formatPlaylistName(args: CreateClassPlaylistArgs): string {
   return `SH - ${args.className} ${hh}:${mm} - ${dd}/${mo}`;
 }
 
+// Read playlist content via the /items endpoint — Spotify deprecated /tracks
+// for new Web API apps (returns 403 Forbidden). The /items endpoint is the
+// unified replacement that supports both tracks AND episodes; filter to track.
 async function fetchAllBaseTracks(): Promise<string[]> {
   const baseId = process.env.SPOTIFY_BASE_PLAYLIST_ID;
   if (!baseId) throw new Error("SPOTIFY_BASE_PLAYLIST_ID not set");
   const uris: string[] = [];
-  let url: string | null = `/v1/playlists/${baseId}/tracks?fields=items(track(uri)),next&limit=100`;
+  let url: string | null = `/v1/playlists/${baseId}/items?fields=items(item(uri,type)),next&limit=100`;
   while (url) {
     const res = await spotifyFetch(url);
     if (!res.ok) throw new Error(`Failed to read base playlist: ${res.status}`);
     const data = (await res.json()) as {
-      items: Array<{ track: { uri: string } | null }>;
+      items: Array<{ item: { uri: string; type: string } | null }>;
       next: string | null;
     };
-    for (const item of data.items) {
-      if (item.track?.uri) uris.push(item.track.uri);
+    for (const it of data.items) {
+      if (it.item?.uri && it.item.type === "track") uris.push(it.item.uri);
     }
     url = data.next;
   }
@@ -81,7 +84,7 @@ export async function createClassPlaylist(
   const seedUris = shuffleTake(baseUris, 20);
 
   if (seedUris.length > 0) {
-    const addRes = await spotifyFetch(`/v1/playlists/${created.id}/tracks`, {
+    const addRes = await spotifyFetch(`/v1/playlists/${created.id}/items`, {
       method: "POST",
       body: JSON.stringify({ uris: seedUris, position: 0 }),
     });
@@ -113,7 +116,7 @@ export async function insertSongAtNextPosition(args: InsertSongArgs): Promise<In
   });
   const position = playlist.requestCount - 1;
 
-  const res = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/tracks`, {
+  const res = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/items`, {
     method: "POST",
     body: JSON.stringify({ uris: [args.trackUri], position }),
   });
@@ -137,9 +140,11 @@ export async function removeSongAndRecompress(songRequestId: string): Promise<vo
   });
   if (!playlist) return;
 
-  const res = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/tracks`, {
+  // DELETE on /items uses body { items: [{ uri }] } — distinct from the legacy
+  // /tracks endpoint which used { tracks: [{ uri }] }.
+  const res = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/items`, {
     method: "DELETE",
-    body: JSON.stringify({ tracks: [{ uri: req.spotifyTrackUri }] }),
+    body: JSON.stringify({ items: [{ uri: req.spotifyTrackUri }] }),
   });
   if (!res.ok) throw new Error(`Spotify delete failed: ${res.status}`);
 
@@ -180,13 +185,13 @@ export async function swapSong(args: SwapSongArgs): Promise<{ position: number; 
   });
   if (!playlist) throw new Error("no playlist");
 
-  const delRes = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/tracks`, {
+  const delRes = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/items`, {
     method: "DELETE",
-    body: JSON.stringify({ tracks: [{ uri: old.spotifyTrackUri }] }),
+    body: JSON.stringify({ items: [{ uri: old.spotifyTrackUri }] }),
   });
   if (!delRes.ok) throw new Error(`Spotify delete failed: ${delRes.status}`);
 
-  const addRes = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/tracks`, {
+  const addRes = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/items`, {
     method: "POST",
     body: JSON.stringify({ uris: [args.newTrackUri], position: old.position }),
   });

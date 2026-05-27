@@ -1,0 +1,28 @@
+
+=== Setup: add track first ===
+[setup] POST → 201: {"snapshot_id":"AAAABDHuX7XvipipPt9eOz5wXGip6aGR"}
+
+=== Verify it's there ===
+[verify] GET → 200: {"href":"https://api.spotify.com/v1/playlists/4Jeo7HJlZf5e4BcaWznetC/items?offset=0&limit=3&locale=*","items":[{"added_at":"2026-05-27T21:13:14Z","added_by":{"external_urls":{"spotify":"https://open.spotify.com/user/ricorespotfy"},"href":"https://api
+
+=== DELETE attempt 1: { uris: [URI] } — simple array ===
+[DEL-attempt1] DELETE → 400: {"error": {"status": 400, "message": "No uris provided" } }
+
+=== DELETE attempt 2: query param uris ===
+[DEL-attempt2] DELETE → 400: {"error": {"status": 400, "message": "No uris provided" } }
+
+=== DELETE attempt 3: { items: [{ uri: URI }] } ===
+[DEL-attempt3] DELETE → 200: {"snapshot_id":"AAAABRZXxm0WlDR+KZ2t8T7zlsNmHroq"}
+
+=== Verify what's left after delete attempts ===
+[post-cleanup] GET → 200: {"href":"https://api.spotify.com/v1/playlists/4Jeo7HJlZf5e4BcaWznetC/items?offset=0&limit=0&locale=*","items":[],"limit":0,"next":null,"offset":0,"previous":null,"total":0}
+
+=== GET /items with corrected fields param: items(item(uri)) ===
+[fields-item] GET → 200: {"items":[{"item":{"type":"track","uri":"spotify:track:0IVAlb0cFCH1cQ974iR1TU"}},{"item":{"type":"track","uri":"spotify:track:3RZNZKGyqygRo7yoLyWtIH"}},{"item":{"type":"track","uri":"spotify:track:2jwKmm3aMz4bNTtJmIzFlC"}}],"next":"https://api.spotif
+    items[0].item: {"type":"track","uri":"spotify:track:0IVAlb0cFCH1cQ974iR1TU"}
+
+=== GET /items full first item shape ===
+[full-item] GET → 200: {"href":"https://api.spotify.com/v1/playlists/5fXQZ7Cb6YCwglfXjy4lhO/items?offset=0&limit=1&locale=*","items":[{"added_at":"2026-03-15T21:19:31Z","added_by":{"external_urls":{"spotify":"https://open.spotify.com/user/ricorespotfy"},"href":"https://api
+    item.item.type: track
+    item.item.uri: spotify:track:0IVAlb0cFCH1cQ974iR1TU
+    item.item.name: Ms. Fat Booty

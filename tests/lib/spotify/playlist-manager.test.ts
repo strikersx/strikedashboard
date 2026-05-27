@@ -128,7 +128,7 @@ describe("createClassPlaylist", () => {
   it("creates a Spotify playlist, seeds 20 shuffled tracks, persists row", async () => {
     const apiCalls: { url: string; method: string; body?: unknown }[] = [];
     const mockTracks = Array.from({ length: 50 }, (_, i) => ({
-      track: { uri: `spotify:track:base${i}` },
+      item: { uri: `spotify:track:base${i}`, type: "track" },
     }));
 
     globalThis.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
@@ -140,7 +140,7 @@ describe("createClassPlaylist", () => {
         );
       }
       if (
-        url.includes("/playlists/basepl/tracks") &&
+        url.includes("/playlists/basepl/items") &&
         (!init?.method || init.method === "GET")
       ) {
         return new Response(
@@ -151,7 +151,7 @@ describe("createClassPlaylist", () => {
       if (url.endsWith("/me/playlists") && init?.method === "POST") {
         return new Response(JSON.stringify({ id: "newpl123" }), { status: 201 });
       }
-      if (url.includes("/playlists/newpl123/tracks") && init?.method === "POST") {
+      if (url.includes("/playlists/newpl123/items") && init?.method === "POST") {
         return new Response(JSON.stringify({ snapshot_id: "abc" }), { status: 201 });
       }
       return new Response("not mocked", { status: 500 });
@@ -200,7 +200,7 @@ describe("createClassPlaylist", () => {
     expect(createCall.data.yogoClassId).toBe(999);
 
     const addCall = apiCalls.find(
-      (c) => c.url.endsWith("/playlists/newpl123/tracks") && c.method === "POST"
+      (c) => c.url.endsWith("/playlists/newpl123/items") && c.method === "POST"
     );
     expect(addCall).toBeDefined();
     const body = JSON.parse(addCall!.body as string);
@@ -278,7 +278,7 @@ describe("insertSongAtNextPosition", () => {
           { status: 200 }
         );
       }
-      if (url.endsWith("/playlists/pl100/tracks") && init?.method === "POST") {
+      if (url.endsWith("/playlists/pl100/items") && init?.method === "POST") {
         receivedBody = JSON.parse(init.body as string);
         return new Response(JSON.stringify({ snapshot_id: "s" }), { status: 201 });
       }
@@ -390,12 +390,12 @@ describe("removeSongAndRecompress", () => {
       createdAt: new Date(),
     });
 
-    let deleteBody: { tracks: { uri: string }[] } | null = null;
+    let deleteBody: { items: { uri: string }[] } | null = null;
     globalThis.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("accounts.spotify.com")) {
         return new Response(JSON.stringify({ access_token: "t", expires_in: 3600 }), { status: 200 });
       }
-      if (url.endsWith("/playlists/pl200/tracks") && init?.method === "DELETE") {
+      if (url.endsWith("/playlists/pl200/items") && init?.method === "DELETE") {
         deleteBody = JSON.parse(init.body as string);
         return new Response(JSON.stringify({ snapshot_id: "s" }), { status: 200 });
       }
@@ -405,7 +405,7 @@ describe("removeSongAndRecompress", () => {
     await removeSongAndRecompress("r1");
 
     expect(deleteBody).not.toBeNull();
-    expect(deleteBody!.tracks).toEqual([{ uri: "spotify:track:t1" }]);
+    expect(deleteBody!.items).toEqual([{ uri: "spotify:track:t1" }]);
 
     // Verify the transaction operations were invoked
     expect(transactionMock).toHaveBeenCalledTimes(1);
@@ -521,7 +521,7 @@ describe("swapSong", () => {
       if (url.includes("accounts.spotify.com")) {
         return new Response(JSON.stringify({ access_token: "t", expires_in: 3600 }), { status: 200 });
       }
-      if (url.endsWith("/playlists/pl300/tracks")) {
+      if (url.endsWith("/playlists/pl300/items")) {
         ops.push({
           method: init?.method,
           body: init?.body ? JSON.parse(init.body as string) : undefined,
@@ -547,7 +547,7 @@ describe("swapSong", () => {
     const addOp = ops.find((o) => o.method === "POST");
     expect(delOp).toBeDefined();
     expect(addOp).toBeDefined();
-    expect((delOp!.body as { tracks: { uri: string }[] }).tracks[0].uri).toBe(
+    expect((delOp!.body as { items: { uri: string }[] }).items[0].uri).toBe(
       "spotify:track:old"
     );
     expect((addOp!.body as { position: number; uris: string[] }).position).toBe(0);

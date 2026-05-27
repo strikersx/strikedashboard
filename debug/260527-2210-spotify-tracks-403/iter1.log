@@ -1,0 +1,49 @@
+
+=== H1: Try /items endpoint (newer Spotify endpoint for playlist contents) ===
+[H1a-GET-items-our] GET /v1/playlists/5fXQZ7Cb6YCwglfXjy4lhO/items?limit=2 → 200
+    body[200]: {"href":"https://api.spotify.com/v1/playlists/5fXQZ7Cb6YCwglfXjy4lhO/items?offset=0&limit=2&locale=*","items":[{"added_at":"2026-03-15T21:19:31Z","added_by":{"external_urls":{"spotify":"https://open.s
+[H1b-POST-items-new] POST /v1/playlists/4Jeo7HJlZf5e4BcaWznetC/items → 201
+    body[200]: {"snapshot_id":"AAAAAsSnxRjUnl6/gvCfWmnMGL7NU9Ym"}
+
+=== H2: Try with minimal fields param ===
+[H2-fields-min] GET /v1/playlists/5fXQZ7Cb6YCwglfXjy4lhO/tracks?fields=items.track.uri → 403
+    body: {"error": {"status": 403, "message": "Forbidden" } }
+
+=== H3: Try Spotify-owned public playlist (Today's Top Hits) ===
+[H3a-GET-meta-spotify-pl] GET /v1/playlists/37i9dQZF1DXcBWIGoYBM5M → 404
+    body: {"error": {"status": 404, "message": "Resource not found" } }
+[H3b-GET-tracks-spotify-pl] GET /v1/playlists/37i9dQZF1DXcBWIGoYBM5M/tracks?limit=1 → 403
+    body: {"error": {"status": 403, "message": "Forbidden" } }
+
+=== H4: Try with User-Agent header ===
+[H4-with-UA] GET /v1/playlists/5fXQZ7Cb6YCwglfXjy4lhO/tracks?limit=1 → 403
+    body: {"error": {"status": 403, "message": "Forbidden" } }
+
+=== H5: Full metadata of our playlist — see exact shape ===
+[H5-meta-full] GET /v1/playlists/5fXQZ7Cb6YCwglfXjy4lhO → 200
+    body[200]: {"collaborative":false,"description":"","external_urls":{"spotify":"https://open.spotify.com/playlist/5fXQZ7Cb6YCwglfXjy4lhO"},"followers":{"href":null,"total":0},"href":"https://api.spotify.com/v1/pl
+    keys: collaborative, description, external_urls, followers, href, id, images, name, owner, primary_color, public, snapshot_id, items, type, uri
+    tracks subobject keys: MISSING
+    tracks.total raw value: undefined
+    tracks.items length: undefined
+
+=== H6: Try PUT (reorder) on our playlist ===
+[H6-PUT-reorder] PUT /v1/playlists/5fXQZ7Cb6YCwglfXjy4lhO/tracks → 403
+    body: {"error": {"status": 403, "message": "Forbidden" } }
+
+=== H7: Try POST tracks with a track that's already in master playlist (re-add) ===
+[H7-POST-tracks-on-empty] POST /v1/playlists/4Jeo7HJlZf5e4BcaWznetC/tracks → 403
+    body: {"error": {"status": 403, "message": "Forbidden" } }
+
+=== H8: Inspect the access_token format (JWT-like?) ===
+Token starts with: BQD1
+Token length: 320
+Token has dots (JWT-style)?: false
+
+=== H9: Check current rate limit headers ===
+status: 403
+all response headers:
+
+=== H10: Try /me/tracks (different scope: user-library-read) — should 403 with 'Insufficient scope' ===
+[H10-me-tracks] GET /v1/me/tracks?limit=1 → 403
+    body: {"error": {"status": 403, "message": "Insufficient client scope" } }
