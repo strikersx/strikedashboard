@@ -25,7 +25,7 @@ export interface CoverageSub {
 
 export interface LastInvite {
   sentAt: string;        // ISO 8601
-  status: string;        // "sent" | "failed" | "pending"
+  status: string;        // "sent" | "failed" | "pending" (set by /api/whatsapp/admin/group-invite/bulk)
   error: string | null;
 }
 
@@ -69,6 +69,8 @@ export async function computeCoverage(): Promise<CoverageReport> {
     }),
   ]);
 
+  // At most one row per phone thanks to @@unique([phoneE164, templateKey]);
+  // the loop is effectively a 1:1 mapping, no orderBy needed.
   const inviteByKey = new Map<string, LastInvite>();
   for (const r of inviteRows) {
     const li: LastInvite = {
