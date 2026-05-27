@@ -29,6 +29,16 @@ interface ExClient {
   member: Member;
 }
 
+interface LastInvite {
+  sentAt: string;
+  status: string;
+  error: string | null;
+}
+
+interface MissingSub extends Sub {
+  lastInvite: LastInvite | null;
+}
+
 interface Report {
   generatedAt: string;
   totals: {
@@ -42,7 +52,7 @@ interface Report {
   };
   covered: Array<Sub & { member: Member }>;
   coveredInactive: ExClient[];
-  missingFromGroup: Sub[];
+  missingFromGroup: MissingSub[];
   unknownInGroup: Member[];
   subsWithoutPhone: Sub[];
 }
@@ -66,6 +76,19 @@ export default function CoveragePage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importErr, setImportErr] = useState<string | null>(null);
   const [showImporter, setShowImporter] = useState(false);
+
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{
+    total: number; sent: number; skipped: number; failed: number; dry: number;
+    aborted?: boolean;
+    details: Array<{ phoneE164: string; outcome: string; reason?: string; metaError?: string }>;
+  } | null>(null);
+  const [bulkErr, setBulkErr] = useState<string | null>(null);
+  const [testPhone, setTestPhone] = useState("");
+  const [testBusy, setTestBusy] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    outcome: string; reason?: string; metaError?: string;
+  } | null>(null);
 
   const resync = useCallback(async () => {
     setLoading(true);
@@ -109,6 +132,65 @@ export default function CoveragePage() {
       setImportBusy(false);
     }
   }, [csv, importBusy, resync]);
+
+  const runBulk = useCallback(async () => {
+    if (!report || bulkBusy) return;
+    const phones = report.missingFromGroup.map((m) => m.phoneE164).filter((p): p is string => !!p);
+    if (phones.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Enviar template a ${phones.length} pessoas? Quem foi convidado nos últimos 30d será saltado.\n\nOK para enviar. Cancelar para abortar.`,
+    );
+    if (!confirmed) return;
+
+    setBulkBusy(true);
+    setBulkErr(null);
+    setBulkResult(null);
+    try {
+      const res = await fetch("/api/whatsapp/admin/group-invite/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneE164s: phones, force: false }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setBulkResult(data);
+      await resync();
+    } catch (e: unknown) {
+      setBulkErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [report, bulkBusy, resync]);
+
+  const runTest = useCallback(async () => {
+    if (testBusy || !testPhone.trim()) return;
+    setTestBusy(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/whatsapp/admin/group-invite/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneE164s: [testPhone.trim()], force: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTestResult({ outcome: "failed", reason: data.error || `HTTP ${res.status}` });
+        return;
+      }
+      const detail = data.details?.[0];
+      setTestResult({
+        outcome: detail?.outcome ?? "unknown",
+        reason: detail?.reason,
+        metaError: detail?.metaError,
+      });
+      await resync();
+    } catch (e: unknown) {
+      setTestResult({ outcome: "failed", reason: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setTestBusy(false);
+    }
+  }, [testBusy, testPhone, resync]);
 
   return (
     <div style={{ padding: "8px 18px 32px" }}>
@@ -195,11 +277,60 @@ export default function CoveragePage() {
             </div>
           </section>
 
-          <Section title={`Faltam convidar (${report.missingFromGroup.length})`} empty="Todos os subscritores activos já estão no grupo 🎉" accent="warn">
-            {report.missingFromGroup.map((s) => (
-              <SubRow key={s.customerId} sub={s} />
-            ))}
-          </Section>
+          <section style={{ marginBottom: 22 }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+              <h3 className="head" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: report.missingFromGroup.length > 0 ? "#fbbf24" : "#fff", margin: 0 }}>
+                Faltam convidar ({report.missingFromGroup.length})
+              </h3>
+              {report.missingFromGroup.length > 0 && (
+                <button onClick={runBulk} disabled={bulkBusy} style={btnStyle("primary", bulkBusy)}>
+                  {bulkBusy ? "A enviar..." : "Convidar todos"}
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>🧪 Testar:</span>
+              <input
+                value={testPhone}
+                onChange={(e) => setTestPhone(e.target.value)}
+                placeholder="+351912873698"
+                style={{ fontSize: 12, padding: "6px 10px", borderRadius: 6, background: "#000", color: "#fff", border: "1px solid rgba(255,255,255,0.15)", width: 200, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
+              />
+              <button onClick={runTest} disabled={testBusy || !testPhone.trim()} style={btnStyle("ghost")}>
+                {testBusy ? "..." : "Enviar teste"}
+              </button>
+              {testResult && (
+                <span style={{ fontSize: 12, color: testResult.outcome === "sent" ? "#00E5A0" : testResult.outcome === "skipped" ? "#fbbf24" : "#fca5a5", wordBreak: "break-word", maxWidth: "100%" }}>
+                  {testResult.outcome}{testResult.reason ? ` · ${testResult.reason}` : ""}{testResult.metaError ? ` · ${testResult.metaError}` : ""}
+                </span>
+              )}
+            </div>
+
+            {bulkResult && (
+              <div style={{ padding: 10, borderRadius: 8, background: "rgba(0,229,160,0.08)", color: "#bbf7d0", fontSize: 12, marginBottom: 10 }}>
+                ✓ {bulkResult.sent} enviados · {bulkResult.skipped} saltados · {bulkResult.failed} falharam
+              </div>
+            )}
+            {bulkResult?.aborted && (
+              <div style={errBox}>
+                Envio interrompido — credenciais Meta inválidas. Contactar ops.
+              </div>
+            )}
+            {bulkErr && (
+              <div style={errBox}>{bulkErr}</div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {report.missingFromGroup.length === 0 ? (
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Todos os subscritores activos já estão no grupo 🎉</span>
+              ) : (
+                report.missingFromGroup.map((s) => (
+                  <MissingSubRow key={s.customerId} sub={s} />
+                ))
+              )}
+            </div>
+          </section>
 
           <Section title={`Desconhecidos no grupo (${report.unknownInGroup.length})`} empty="Todos no grupo estão no Yogo." accent="warn">
             {report.unknownInGroup.map((m) => (
@@ -269,6 +400,30 @@ function Metric({ label, value, hint, accent }: { label: string; value: number; 
       <div className="num" style={{ fontSize: 24, fontWeight: 700, color: display }}>{value}</div>
       {hint && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{hint}</div>}
     </div>
+  );
+}
+
+function MissingSubRow({ sub }: { sub: MissingSub }) {
+  return (
+    <div style={rowStyle}>
+      <div style={{ display: "flex", gap: 10, alignItems: "baseline", minWidth: 0, flex: 1, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{sub.displayName}</span>
+        {sub.plan && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{sub.plan}</span>}
+        <span className="mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{sub.phoneE164 ?? sub.phoneRaw ?? "—"}</span>
+        {sub.lastInvite && <InviteBadge invite={sub.lastInvite} />}
+      </div>
+    </div>
+  );
+}
+
+function InviteBadge({ invite }: { invite: LastInvite }) {
+  const days = Math.floor((Date.now() - new Date(invite.sentAt).getTime()) / 86400000);
+  const label = invite.status === "sent" ? `enviado ${days}d` : invite.status === "pending" ? "pendente" : "falhou";
+  const color = invite.status === "sent" ? "rgba(0,229,160,0.85)" : invite.status === "pending" ? "#fbbf24" : "#fca5a5";
+  return (
+    <span title={`${new Date(invite.sentAt).toLocaleString("pt-PT")}${invite.error ? ` · ${invite.error}` : ""}`} style={{ fontSize: 11, color }}>
+      · {label}
+    </span>
   );
 }
 

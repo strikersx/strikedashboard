@@ -1,0 +1,16 @@
+round	persona	findings_produced	findings_revised	challenges_issued	flip_count	status
+0	Operator	4	0	0	0	independent_analysis
+0	Migrations	4	0	0	0	independent_analysis
+0	BulkOps	5	0	0	0	independent_analysis
+0	Security	5	0	0	0	independent_analysis
+0	DevilsAdvocate	5	0	0	0	independent_analysis
+1	Operator	4	0	2	0	debate_round_1
+1	Migrations	4	1	1	1	debate_round_1
+1	BulkOps	5	1	1	1	debate_round_1
+1	Security	5	0	2	0	debate_round_1
+1	DevilsAdvocate	5	1	2	1	debate_round_1
+2	Operator	4	1	0	1	debate_round_2
+2	Migrations	4	1	0	1	debate_round_2
+2	BulkOps	5	1	0	1	debate_round_2
+2	Security	5	1	0	1	debate_round_2
+2	DevilsAdvocate	5	1	0	1	debate_round_2

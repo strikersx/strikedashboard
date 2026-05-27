@@ -23,6 +23,12 @@ export interface CoverageSub {
   plan: string | null;
 }
 
+export interface LastInvite {
+  sentAt: string;        // ISO 8601
+  status: string;        // "sent" | "failed" | "pending" (set by /api/whatsapp/admin/group-invite/bulk)
+  error: string | null;
+}
+
 export interface CoverageExClient {
   customerId: number;
   displayName: string;
@@ -47,17 +53,33 @@ export interface CoverageReport {
   };
   covered: Array<CoverageSub & { member: CoverageMember }>;
   coveredInactive: CoverageExClient[];
-  missingFromGroup: CoverageSub[];
+  missingFromGroup: Array<CoverageSub & { lastInvite: LastInvite | null }>;
   unknownInGroup: CoverageMember[];
   subsWithoutPhone: CoverageSub[];
 }
 
 export async function computeCoverage(): Promise<CoverageReport> {
-  const [activeSubs, allCustomers, members] = await Promise.all([
+  const [activeSubs, allCustomers, members, inviteRows] = await Promise.all([
     fetchActiveRecurringSubs(),
     fetchAllYogoCustomers(),
     db.waGroupMember.findMany(),
+    db.waOutbound.findMany({
+      where: { templateKey: "grp_invite" },
+      select: { phoneE164: true, status: true, error: true, sentAt: true },
+    }),
   ]);
+
+  // At most one row per phone thanks to @@unique([phoneE164, templateKey]);
+  // the loop is effectively a 1:1 mapping, no orderBy needed.
+  const inviteByKey = new Map<string, LastInvite>();
+  for (const r of inviteRows) {
+    const li: LastInvite = {
+      sentAt: r.sentAt.toISOString(),
+      status: r.status,
+      error: r.error ?? null,
+    };
+    for (const k of keysFor(r.phoneE164)) inviteByKey.set(k, li);
+  }
 
   // Index group members by every phone variant so a single lookup hits all
   // formats Yogo might have stored (E.164, no-+, no-country-code).
@@ -128,13 +150,16 @@ export async function computeCoverage(): Promise<CoverageReport> {
     }
   }
 
-  const missingFromGroup: CoverageSub[] = [];
+  const missingFromGroup: Array<CoverageSub & { lastInvite: LastInvite | null }> = [];
   const subsWithoutPhone: CoverageSub[] = [];
   for (const s of activeSubs) {
     const cs = toCoverageSub(s);
     if (!cs.phoneE164) { subsWithoutPhone.push(cs); continue; }
     const hit = lookup(memberByKey, keysFor(cs.phoneE164));
-    if (!hit) missingFromGroup.push(cs);
+    if (!hit) {
+      const lastInvite = lookup(inviteByKey, keysFor(cs.phoneE164)) ?? null;
+      missingFromGroup.push({ ...cs, lastInvite });
+    }
   }
 
   return {
