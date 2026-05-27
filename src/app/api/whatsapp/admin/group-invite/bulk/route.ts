@@ -32,6 +32,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "phoneE164s_required" }, { status: 400 });
   }
 
+  if (body.phoneE164s.length > 500) {
+    return NextResponse.json({ error: "too_many_phones", max: 500 }, { status: 400 });
+  }
+
   const phones: string[] = [];
   for (const p of body.phoneE164s) {
     if (typeof p !== "string") {
@@ -51,48 +55,54 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "missing_invite_url" }, { status: 500 });
   }
 
-  // One Yogo round-trip up front, then a phone→name lookup against every
-  // variant the normalizer produces.
-  const customers = await fetchAllYogoCustomers();
-  const nameByKey = new Map<string, string>();
-  for (const c of customers) {
-    if (!c.phoneE164) continue;
-    for (const k of normalize(c.phoneE164).variants) {
-      if (!nameByKey.has(k)) nameByKey.set(k, c.displayName);
+  try {
+    // One Yogo round-trip up front, then a phone→name lookup against every
+    // variant the normalizer produces.
+    const customers = await fetchAllYogoCustomers();
+    const nameByKey = new Map<string, string>();
+    for (const c of customers) {
+      if (!c.phoneE164) continue;
+      for (const k of normalize(c.phoneE164).variants) {
+        if (!nameByKey.has(k)) nameByKey.set(k, c.displayName);
+      }
     }
-  }
 
-  const now = new Date();
-  const details: SendDetail[] = [];
-
-  for (const phoneE164 of phones) {
-    const name = lookupName(nameByKey, phoneE164) ?? "amigo";
-
-    const prior = await db.waOutbound.findFirst({
-      where: { phoneE164, templateKey: TEMPLATE_KEY },
-      select: { sentAt: true },
+    const priorRows = await db.waOutbound.findMany({
+      where: { phoneE164: { in: phones }, templateKey: TEMPLATE_KEY },
+      select: { phoneE164: true, sentAt: true },
     });
+    const priorByPhone = new Map<string, Date>(priorRows.map((r) => [r.phoneE164, r.sentAt]));
 
-    const decision = idempotencyAllows(now, prior?.sentAt ?? null, force);
-    if (!decision.allowed) {
-      details.push({
-        phoneE164,
-        outcome: "skipped",
-        reason: `recently_invited_${decision.daysSince}_days`,
-      });
-      continue;
+    const now = new Date();
+    const details: SendDetail[] = [];
+
+    for (const phoneE164 of phones) {
+      const name = lookupName(nameByKey, phoneE164) ?? "amigo";
+
+      const decision = idempotencyAllows(now, priorByPhone.get(phoneE164) ?? null, force);
+      if (!decision.allowed) {
+        details.push({
+          phoneE164,
+          outcome: "skipped",
+          reason: `recently_invited_${decision.daysSince}_days`,
+        });
+        continue;
+      }
+
+      if (dryRun) {
+        details.push({ phoneE164, outcome: "dry", reason: `would_send_to_${name}` });
+        continue;
+      }
+
+      // Real send lands in Task 5.
+      details.push({ phoneE164, outcome: "failed", reason: "send_not_implemented" });
     }
 
-    if (dryRun) {
-      details.push({ phoneE164, outcome: "dry", reason: `would_send_to_${name}` });
-      continue;
-    }
-
-    // Real send lands in Task 5.
-    details.push({ phoneE164, outcome: "failed", reason: "send_not_implemented" });
+    return NextResponse.json({ ...summarizeDetails(details), details });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: "bulk_failed", message: msg }, { status: 500 });
   }
-
-  return NextResponse.json({ ...summarizeDetails(details), details });
 }
 
 function lookupName(map: Map<string, string>, phoneE164: string): string | null {
