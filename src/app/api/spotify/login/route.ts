@@ -4,6 +4,8 @@ import { randomBytes } from "node:crypto";
 
 const SPOTIFY_AUTHORIZE = "https://accounts.spotify.com/authorize";
 const SCOPES = [
+  "user-read-private",
+  "user-read-email",
   "playlist-modify-public",
   "playlist-modify-private",
   "playlist-read-private",
