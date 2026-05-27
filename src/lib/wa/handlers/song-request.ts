@@ -3,7 +3,7 @@ import { sendText } from "@/lib/wa/meta";
 import { loadSession, transition, ttlFromNow, resetToIdle, type SessionRow } from "@/lib/wa/session";
 import { parseSpotifyTrackId } from "@/lib/wa/parser";
 import { evaluateTrack } from "@/lib/spotify/genre-filter";
-import { insertSongAtNextPosition, swapSong } from "@/lib/spotify/playlist-manager";
+import { insertSongAtNextPosition, swapSong, removeSongAndRecompress } from "@/lib/spotify/playlist-manager";
 
 const OFFER_TEXT =
   "Queres pedir uma música para esta aula? Manda o link do Spotify ou diz 'não' para ignorar.";
@@ -204,6 +204,24 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
 
   await sendText(phoneE164, "Adicionado! 🥷");
   await resetToIdle(session);
+}
+
+export async function removeSongOnCancel(phoneE164: string, yogoClassId: number): Promise<void> {
+  const active = await db.waSongRequest.findFirst({
+    where: { contactId: phoneE164, yogoClassId, status: "active" },
+  });
+  if (!active) return;
+  try {
+    await removeSongAndRecompress(active.id);
+  } catch (err) {
+    await db.waEvent.create({
+      data: {
+        kind: "SONG_REMOVE_FAIL",
+        phoneE164,
+        meta: JSON.stringify({ requestId: active.id, error: String(err) }),
+      },
+    });
+  }
 }
 
 export async function handleSwapConfirm(session: SessionRow, body: string): Promise<void> {

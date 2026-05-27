@@ -10,9 +10,11 @@ const {
   playlistFindUniqueMock,
   songRequestFindFirstMock,
   songRequestCreateMock,
+  waEventCreateMock,
   evaluateTrackMock,
   insertSongAtNextPositionMock,
   swapSongMock,
+  removeSongAndRecompressMock,
 } = vi.hoisted(() => ({
   sendTextMock: vi.fn(),
   loadSessionMock: vi.fn(),
@@ -22,9 +24,11 @@ const {
   playlistFindUniqueMock: vi.fn(),
   songRequestFindFirstMock: vi.fn(),
   songRequestCreateMock: vi.fn(),
+  waEventCreateMock: vi.fn(),
   evaluateTrackMock: vi.fn(),
   insertSongAtNextPositionMock: vi.fn(),
   swapSongMock: vi.fn(),
+  removeSongAndRecompressMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => {
@@ -35,6 +39,9 @@ vi.mock("@/lib/db", () => {
     waSongRequest: {
       findFirst: songRequestFindFirstMock,
       create: songRequestCreateMock,
+    },
+    waEvent: {
+      create: waEventCreateMock,
     },
   };
   return { db: dbMock };
@@ -51,6 +58,7 @@ vi.mock("@/lib/spotify/playlist-manager", async (importOriginal) => {
     ...actual,
     insertSongAtNextPosition: insertSongAtNextPositionMock,
     swapSong: swapSongMock,
+    removeSongAndRecompress: removeSongAndRecompressMock,
   };
 });
 
@@ -70,7 +78,7 @@ vi.mock("@/lib/wa/session", async (importOriginal) => {
   };
 });
 
-import { offerSongRequest, handleSongInput, handleSongConfirm, handleSwapConfirm } from "@/lib/wa/handlers/song-request";
+import { offerSongRequest, handleSongInput, handleSongConfirm, handleSwapConfirm, removeSongOnCancel } from "@/lib/wa/handlers/song-request";
 
 const PHONE = "+351912345678";
 const CLASS_ID = 42;
@@ -495,5 +503,44 @@ describe("handleSwapConfirm", () => {
     expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_SWAP_SESSION);
     expect(swapSongMock).not.toHaveBeenCalled();
     expect(evaluateTrackMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("removeSongOnCancel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    waEventCreateMock.mockResolvedValue({});
+    removeSongAndRecompressMock.mockResolvedValue(undefined);
+  });
+
+  it("active request exists → removeSongAndRecompress called with the active request's id", async () => {
+    const activeRequest = {
+      id: "req-active-42",
+      contactId: PHONE,
+      yogoClassId: CLASS_ID,
+      status: "active",
+    };
+    songRequestFindFirstMock.mockResolvedValueOnce(activeRequest);
+
+    await removeSongOnCancel(PHONE, CLASS_ID);
+
+    expect(songRequestFindFirstMock).toHaveBeenCalledWith({
+      where: { contactId: PHONE, yogoClassId: CLASS_ID, status: "active" },
+    });
+    expect(removeSongAndRecompressMock).toHaveBeenCalledOnce();
+    expect(removeSongAndRecompressMock).toHaveBeenCalledWith(activeRequest.id);
+    expect(waEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("no active request → no-op, removeSongAndRecompress not called, no DB error logged", async () => {
+    songRequestFindFirstMock.mockResolvedValueOnce(null);
+
+    await removeSongOnCancel(PHONE, CLASS_ID);
+
+    expect(songRequestFindFirstMock).toHaveBeenCalledWith({
+      where: { contactId: PHONE, yogoClassId: CLASS_ID, status: "active" },
+    });
+    expect(removeSongAndRecompressMock).not.toHaveBeenCalled();
+    expect(waEventCreateMock).not.toHaveBeenCalled();
   });
 });
