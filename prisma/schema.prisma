@@ -103,3 +103,12 @@ model WaSongRequest {
   @@index([contactId, yogoClassId])
   @@index([yogoClassId, status])
 }
+
+model WaClassPlaylist {
+  id                String   @id @default(cuid())
+  yogoClassId       Int      @unique
+  spotifyPlaylistId String
+  createdAt         DateTime @default(now())
+  requestCount      Int      @default(0)
+  locked            Boolean  @default(false)
+}
