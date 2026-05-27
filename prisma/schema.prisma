@@ -112,3 +112,19 @@ model WaClassPlaylist {
   requestCount      Int      @default(0)
   locked            Boolean  @default(false)
 }
+
+model WaBlockedGenre {
+  id        String   @id @default(cuid())
+  keyword   String   @unique
+  addedBy   String
+  addedAt   DateTime @default(now())
+  active    Boolean  @default(true)
+}
+
+model WaBlockedArtist {
+  spotifyArtistId String   @id
+  artistName      String
+  reason          String?
+  addedBy         String
+  addedAt         DateTime @default(now())
+}
