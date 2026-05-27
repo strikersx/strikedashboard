@@ -81,6 +81,8 @@ export async function resetToIdle(current: SessionRow): Promise<TransitionResult
     state: "IDLE",
     pendingClassId: null,
     pendingSignupId: null,
+    pendingSongClassId: null,
+    pendingTrackId: null,
     expiresAt: null,
   });
 }

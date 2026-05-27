@@ -17,6 +17,7 @@ import {
   handleConfirmCancel,
 } from "@/lib/wa/handlers/cancelar";
 import { handleOutros, sendMenu } from "@/lib/wa/handlers/menu";
+import { handleSongInput } from "@/lib/wa/handlers/song-request";
 
 // Dispatch routes an inbound WhatsApp message based on (1) menu button IDs,
 // (2) the session's current state, and (3) the intent kind from the parser.
@@ -103,6 +104,20 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
       if (intent.kind === "button" && intent.id === "abort_cancel") return handleAbortCancel(session);
       await resetToIdle(session);
       return sendMenu(phoneE164);
+
+    case "AWAIT_SONG_INPUT":
+      if (intent.kind === "text") return handleSongInput(session, intent.body);
+      // Non-text (buttons, list picks) while awaiting a song → hint
+      await sendText(phoneE164, "Manda o link do Spotify da música (ex: https://open.spotify.com/track/...) ou diz 'não' para ignorar.");
+      return;
+
+    case "AWAIT_SONG_CONFIRM":
+      // Task 11 will implement handleSongConfirm.
+      return;
+
+    case "AWAIT_SWAP_CONFIRM":
+      // Task 11 will implement handleSwapConfirm.
+      return;
 
     case "IDLE":
     default:
