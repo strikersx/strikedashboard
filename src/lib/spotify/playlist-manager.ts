@@ -64,11 +64,13 @@ export async function createClassPlaylist(
   const stored = await loadRefreshToken();
   if (!stored) throw new Error("Spotify not authenticated");
 
-  const createRes = await spotifyFetch(`/v1/users/${stored.spotifyUserId}/playlists`, {
+  // Use POST /me/playlists, NOT /users/{user_id}/playlists — the latter
+  // returns 403 "Forbidden" in Development Mode even for the app owner.
+  const createRes = await spotifyFetch(`/v1/me/playlists`, {
     method: "POST",
     body: JSON.stringify({
       name: formatPlaylistName(args),
-      public: false,
+      public: true,
       description: `Auto-generated playlist for Strike's House class ${args.className}`,
     }),
   });

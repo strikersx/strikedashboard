@@ -148,7 +148,7 @@ describe("createClassPlaylist", () => {
           { status: 200 }
         );
       }
-      if (url.includes("/users/user1/playlists") && init?.method === "POST") {
+      if (url.endsWith("/me/playlists") && init?.method === "POST") {
         return new Response(JSON.stringify({ id: "newpl123" }), { status: 201 });
       }
       if (url.includes("/playlists/newpl123/tracks") && init?.method === "POST") {
