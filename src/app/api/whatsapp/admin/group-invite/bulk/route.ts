@@ -53,6 +53,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     phones.push(n.e164);
   }
 
+  const uniquePhones = Array.from(new Set(phones));
+
   const force = body.force === true;
   const dryRun = body.dryRun === true;
   const inviteUrl = process.env.WA_GROUP_INVITE_URL;
@@ -73,15 +75,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const priorRows = await db.waOutbound.findMany({
-      where: { phoneE164: { in: phones }, templateKey: TEMPLATE_KEY },
+      where: { phoneE164: { in: uniquePhones }, templateKey: TEMPLATE_KEY },
       select: { phoneE164: true, sentAt: true },
     });
     const priorByPhone = new Map<string, Date>(priorRows.map((r) => [r.phoneE164, r.sentAt]));
 
     const now = new Date();
     const details: SendDetail[] = [];
+    let aborted = false;
 
-    for (const phoneE164 of phones) {
+    for (const phoneE164 of uniquePhones) {
       const name = lookupName(nameByKey, phoneE164) ?? "amigo";
 
       const decision = idempotencyAllows(now, priorByPhone.get(phoneE164) ?? null, force);
@@ -108,7 +111,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       // The @@unique([phoneE164, templateKey]) keeps the most recent attempt
       // only. Delete-then-create gives us atomic-enough overwrite semantics
-      // without needing a transaction across the Meta call.
+      // without needing a transaction across the Meta call. If sendWithRetry
+      // throws (network error) between the delete and the create, the prior
+      // row is gone and the next run will treat this phone as never-invited.
+      // Acceptable given the 30-day window; the alternative (DB tx wrapping
+      // a network call) would hold a connection open for the duration.
       await db.waOutbound.deleteMany({
         where: { phoneE164, templateKey: TEMPLATE_KEY },
       });
@@ -154,6 +161,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           metaStatus: result.status,
           metaError: snippet(result.body),
         });
+        aborted = true;
         break;
       } else {
         const looksPending = isTemplatePendingError(result.body);
@@ -195,7 +203,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       await sleep(PER_REQUEST_GAP_MS);
     }
 
-    return NextResponse.json({ ...summarizeDetails(details), details });
+    return NextResponse.json({ ...summarizeDetails(details), aborted, details });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: "bulk_failed", message: msg }, { status: 500 });
@@ -226,7 +234,7 @@ function isAuthFailure(status: number): boolean {
 
 // Meta returns 400 with a 132xxx code when a template is unknown or pending.
 function isTemplatePendingError(body: string): boolean {
-  return /template|not.{0,10}translated|not.{0,10}approved|132\d{3}/i.test(body);
+  return /not.{0,10}translated|not.{0,10}approved|132\d{3}/i.test(body);
 }
 
 // 131026 = "Message Undeliverable" (recipient not on WhatsApp).
