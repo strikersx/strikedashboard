@@ -3,6 +3,7 @@ import { sendText } from "@/lib/wa/meta";
 import { loadSession, transition, ttlFromNow, resetToIdle, type SessionRow } from "@/lib/wa/session";
 import { parseSpotifyTrackId } from "@/lib/wa/parser";
 import { evaluateTrack } from "@/lib/spotify/genre-filter";
+import { insertSongAtNextPosition, swapSong } from "@/lib/spotify/playlist-manager";
 
 const OFFER_TEXT =
   "Queres pedir uma música para esta aula? Manda o link do Spotify ou diz 'não' para ignorar.";
@@ -137,4 +138,114 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
     phoneE164,
     `Vais ouvir ${result.trackName} — ${result.artistName} 🎵\nConfirmar? (sim/não)`
   );
+}
+
+export async function handleSongConfirm(session: SessionRow, body: string): Promise<void> {
+  const phoneE164 = session.phoneE164;
+  const text = body.trim().toLowerCase();
+
+  if (text === "não" || text === "nao" || text === "n" || text === "no") {
+    await resetToIdle(session);
+    return;
+  }
+  if (!(text === "sim" || text === "s" || text === "yes" || text === "y")) {
+    await sendText(phoneE164, "Responde 'sim' ou 'não'.");
+    return;
+  }
+
+  if (!session.pendingSongClassId || !session.pendingTrackId) {
+    await resetToIdle(session);
+    return;
+  }
+  const yogoClassId = session.pendingSongClassId;
+  const trackId = session.pendingTrackId;
+
+  const result = await evaluateTrack(trackId);
+  if (result.outcome !== "accept") {
+    await resetToIdle(session);
+    return;
+  }
+
+  const existing = await db.waSongRequest.findFirst({
+    where: { contactId: phoneE164, yogoClassId, status: "active" },
+  });
+
+  if (existing) {
+    const t = await transition(session, {
+      state: "AWAIT_SWAP_CONFIRM",
+      pendingSongClassId: yogoClassId,
+      pendingTrackId: trackId,
+      expiresAt: ttlFromNow(),
+    });
+    if (!t.ok) return;
+    await sendText(
+      phoneE164,
+      `Já pediste "${existing.spotifyTrackName} — ${existing.spotifyArtistName}" para esta aula.\nQueres trocar pela nova (${result.trackName} — ${result.artistName})? (sim/não)`
+    );
+    return;
+  }
+
+  const ins = await insertSongAtNextPosition({
+    yogoClassId,
+    trackUri: result.trackUri,
+  });
+  await db.waSongRequest.create({
+    data: {
+      contactId: phoneE164,
+      yogoClassId,
+      spotifyTrackId: result.trackId,
+      spotifyTrackName: result.trackName,
+      spotifyArtistName: result.artistName,
+      spotifyTrackUri: result.trackUri,
+      position: ins.position,
+      status: "active",
+    },
+  });
+
+  await sendText(phoneE164, "Adicionado! 🥷");
+  await resetToIdle(session);
+}
+
+export async function handleSwapConfirm(session: SessionRow, body: string): Promise<void> {
+  const phoneE164 = session.phoneE164;
+  const text = body.trim().toLowerCase();
+
+  if (!(text === "sim" || text === "s" || text === "yes" || text === "y")) {
+    await sendText(phoneE164, "Pedido cancelado. Música anterior mantida.");
+    await resetToIdle(session);
+    return;
+  }
+
+  if (!session.pendingSongClassId || !session.pendingTrackId) {
+    await resetToIdle(session);
+    return;
+  }
+  const yogoClassId = session.pendingSongClassId;
+  const trackId = session.pendingTrackId;
+
+  const old = await db.waSongRequest.findFirst({
+    where: { contactId: phoneE164, yogoClassId, status: "active" },
+  });
+  if (!old) {
+    await resetToIdle(session);
+    return;
+  }
+
+  const result = await evaluateTrack(trackId);
+  if (result.outcome !== "accept") {
+    await resetToIdle(session);
+    return;
+  }
+
+  await swapSong({
+    oldRequestId: old.id,
+    newTrackUri: result.trackUri,
+    newTrackId: result.trackId,
+    newTrackName: result.trackName,
+    newArtistName: result.artistName,
+    contactId: phoneE164,
+  });
+
+  await sendText(phoneE164, "Troca feita! 🥷");
+  await resetToIdle(session);
 }

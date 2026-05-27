@@ -17,7 +17,7 @@ import {
   handleConfirmCancel,
 } from "@/lib/wa/handlers/cancelar";
 import { handleOutros, sendMenu } from "@/lib/wa/handlers/menu";
-import { handleSongInput } from "@/lib/wa/handlers/song-request";
+import { handleSongInput, handleSongConfirm, handleSwapConfirm } from "@/lib/wa/handlers/song-request";
 
 // Dispatch routes an inbound WhatsApp message based on (1) menu button IDs,
 // (2) the session's current state, and (3) the intent kind from the parser.
@@ -112,11 +112,13 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
       return;
 
     case "AWAIT_SONG_CONFIRM":
-      // Task 11 will implement handleSongConfirm.
+      if (intent.kind === "text") return handleSongConfirm(session, intent.body);
+      await sendText(phoneE164, "Responde 'sim' ou 'não'.");
       return;
 
     case "AWAIT_SWAP_CONFIRM":
-      // Task 11 will implement handleSwapConfirm.
+      if (intent.kind === "text") return handleSwapConfirm(session, intent.body);
+      await sendText(phoneE164, "Responde 'sim' ou 'não'.");
       return;
 
     case "IDLE":

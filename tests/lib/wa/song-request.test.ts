@@ -11,6 +11,8 @@ const {
   songRequestFindFirstMock,
   songRequestCreateMock,
   evaluateTrackMock,
+  insertSongAtNextPositionMock,
+  swapSongMock,
 } = vi.hoisted(() => ({
   sendTextMock: vi.fn(),
   loadSessionMock: vi.fn(),
@@ -21,6 +23,8 @@ const {
   songRequestFindFirstMock: vi.fn(),
   songRequestCreateMock: vi.fn(),
   evaluateTrackMock: vi.fn(),
+  insertSongAtNextPositionMock: vi.fn(),
+  swapSongMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => {
@@ -41,6 +45,15 @@ vi.mock("@/lib/spotify/genre-filter", async (importOriginal) => {
   return { ...actual, evaluateTrack: evaluateTrackMock };
 });
 
+vi.mock("@/lib/spotify/playlist-manager", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/spotify/playlist-manager")>();
+  return {
+    ...actual,
+    insertSongAtNextPosition: insertSongAtNextPositionMock,
+    swapSong: swapSongMock,
+  };
+});
+
 vi.mock("@/lib/wa/meta", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/wa/meta")>();
   return { ...actual, sendText: sendTextMock };
@@ -57,7 +70,7 @@ vi.mock("@/lib/wa/session", async (importOriginal) => {
   };
 });
 
-import { offerSongRequest, handleSongInput } from "@/lib/wa/handlers/song-request";
+import { offerSongRequest, handleSongInput, handleSongConfirm, handleSwapConfirm } from "@/lib/wa/handlers/song-request";
 
 const PHONE = "+351912345678";
 const CLASS_ID = 42;
@@ -322,5 +335,165 @@ describe("handleSongInput", () => {
     );
     expect(resetToIdleMock).not.toHaveBeenCalled();
     expect(songRequestCreateMock).not.toHaveBeenCalled();
+  });
+});
+
+// ── Shared session for AWAIT_SONG_CONFIRM / AWAIT_SWAP_CONFIRM tests ──────────
+
+const AWAIT_CONFIRM_SESSION = {
+  phoneE164: PHONE,
+  state: "AWAIT_SONG_CONFIRM",
+  pendingClassId: null,
+  pendingSignupId: null,
+  pendingSongClassId: CLASS_ID,
+  pendingTrackId: TRACK_ID,
+  expiresAt: new Date(Date.now() + 600_000),
+  version: 2,
+};
+
+const AWAIT_SWAP_SESSION = {
+  ...AWAIT_CONFIRM_SESSION,
+  state: "AWAIT_SWAP_CONFIRM",
+  version: 3,
+};
+
+const ACCEPT_RESULT = {
+  outcome: "accept" as const,
+  trackId: TRACK_ID,
+  trackName: "Lose Yourself",
+  trackUri: `spotify:track:${TRACK_ID}`,
+  artistName: "Eminem",
+  artistIds: ["7dGJo4pcD2V6oG8kP0tJRR"],
+};
+
+const EXISTING_REQUEST = {
+  id: "req-existing",
+  contactId: PHONE,
+  yogoClassId: CLASS_ID,
+  spotifyTrackId: "oldTrackId",
+  spotifyTrackName: "Rap God",
+  spotifyArtistName: "Eminem",
+  spotifyTrackUri: "spotify:track:oldTrackId",
+  position: 0,
+  status: "active",
+};
+
+describe("handleSongConfirm", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ttlFromNowMock.mockReturnValue(FAKE_EXPIRES);
+    resetToIdleMock.mockResolvedValue({ ok: true, session: { ...AWAIT_CONFIRM_SESSION, state: "IDLE" } });
+    sendTextMock.mockResolvedValue({ ok: true, status: 200, body: "" });
+    songRequestCreateMock.mockResolvedValue({ id: "req-new" });
+    insertSongAtNextPositionMock.mockResolvedValue({ position: 1 });
+  });
+
+  it("'sim' + no existing request → insertSongAtNextPosition called, WaSongRequest created with status=active, 'Adicionado!' sent, session reset", async () => {
+    evaluateTrackMock.mockResolvedValueOnce(ACCEPT_RESULT);
+    songRequestFindFirstMock.mockResolvedValueOnce(null);
+
+    await handleSongConfirm(AWAIT_CONFIRM_SESSION, "sim");
+
+    expect(evaluateTrackMock).toHaveBeenCalledWith(TRACK_ID);
+    expect(insertSongAtNextPositionMock).toHaveBeenCalledWith({
+      yogoClassId: CLASS_ID,
+      trackUri: ACCEPT_RESULT.trackUri,
+    });
+    expect(songRequestCreateMock).toHaveBeenCalledOnce();
+    expect(songRequestCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        contactId: PHONE,
+        yogoClassId: CLASS_ID,
+        spotifyTrackId: TRACK_ID,
+        spotifyTrackName: "Lose Yourself",
+        spotifyArtistName: "Eminem",
+        status: "active",
+        position: 1,
+      }),
+    });
+    expect(sendTextMock).toHaveBeenCalledWith(PHONE, "Adicionado! 🥷");
+    expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_CONFIRM_SESSION);
+  });
+
+  it("'não' → no insert, no create, no message, session reset silently", async () => {
+    await handleSongConfirm(AWAIT_CONFIRM_SESSION, "não");
+
+    expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_CONFIRM_SESSION);
+    expect(sendTextMock).not.toHaveBeenCalled();
+    expect(insertSongAtNextPositionMock).not.toHaveBeenCalled();
+    expect(songRequestCreateMock).not.toHaveBeenCalled();
+    expect(evaluateTrackMock).not.toHaveBeenCalled();
+  });
+
+  it("'sim' + existing active request → transitions to AWAIT_SWAP_CONFIRM and sends swap prompt with both song names", async () => {
+    evaluateTrackMock.mockResolvedValueOnce(ACCEPT_RESULT);
+    songRequestFindFirstMock.mockResolvedValueOnce(EXISTING_REQUEST);
+    transitionMock.mockResolvedValueOnce({
+      ok: true,
+      session: { ...AWAIT_CONFIRM_SESSION, state: "AWAIT_SWAP_CONFIRM", version: 3 },
+    });
+
+    await handleSongConfirm(AWAIT_CONFIRM_SESSION, "sim");
+
+    expect(transitionMock).toHaveBeenCalledWith(AWAIT_CONFIRM_SESSION, {
+      state: "AWAIT_SWAP_CONFIRM",
+      pendingSongClassId: CLASS_ID,
+      pendingTrackId: TRACK_ID,
+      expiresAt: FAKE_EXPIRES,
+    });
+    expect(sendTextMock).toHaveBeenCalledOnce();
+    expect(sendTextMock).toHaveBeenCalledWith(
+      PHONE,
+      `Já pediste "Rap God — Eminem" para esta aula.\nQueres trocar pela nova (Lose Yourself — Eminem)? (sim/não)`,
+    );
+    expect(insertSongAtNextPositionMock).not.toHaveBeenCalled();
+    expect(songRequestCreateMock).not.toHaveBeenCalled();
+    expect(resetToIdleMock).not.toHaveBeenCalled();
+  });
+
+  it("invalid reply → sends 'Responde sim ou não', stays in state (no reset)", async () => {
+    await handleSongConfirm(AWAIT_CONFIRM_SESSION, "talvez");
+
+    expect(sendTextMock).toHaveBeenCalledWith(PHONE, "Responde 'sim' ou 'não'.");
+    expect(resetToIdleMock).not.toHaveBeenCalled();
+    expect(evaluateTrackMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleSwapConfirm", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ttlFromNowMock.mockReturnValue(FAKE_EXPIRES);
+    resetToIdleMock.mockResolvedValue({ ok: true, session: { ...AWAIT_SWAP_SESSION, state: "IDLE" } });
+    sendTextMock.mockResolvedValue({ ok: true, status: 200, body: "" });
+    swapSongMock.mockResolvedValue({ position: 0, newRequestId: "req-swapped" });
+  });
+
+  it("'sim' + existing active request → swapSong called, 'Troca feita!' sent, session reset", async () => {
+    songRequestFindFirstMock.mockResolvedValueOnce(EXISTING_REQUEST);
+    evaluateTrackMock.mockResolvedValueOnce(ACCEPT_RESULT);
+
+    await handleSwapConfirm(AWAIT_SWAP_SESSION, "sim");
+
+    expect(evaluateTrackMock).toHaveBeenCalledWith(TRACK_ID);
+    expect(swapSongMock).toHaveBeenCalledWith({
+      oldRequestId: EXISTING_REQUEST.id,
+      newTrackUri: ACCEPT_RESULT.trackUri,
+      newTrackId: ACCEPT_RESULT.trackId,
+      newTrackName: ACCEPT_RESULT.trackName,
+      newArtistName: ACCEPT_RESULT.artistName,
+      contactId: PHONE,
+    });
+    expect(sendTextMock).toHaveBeenCalledWith(PHONE, "Troca feita! 🥷");
+    expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_SWAP_SESSION);
+  });
+
+  it("'não' → 'Pedido cancelado' sent, session reset, no swap", async () => {
+    await handleSwapConfirm(AWAIT_SWAP_SESSION, "não");
+
+    expect(sendTextMock).toHaveBeenCalledWith(PHONE, "Pedido cancelado. Música anterior mantida.");
+    expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_SWAP_SESSION);
+    expect(swapSongMock).not.toHaveBeenCalled();
+    expect(evaluateTrackMock).not.toHaveBeenCalled();
   });
 });
