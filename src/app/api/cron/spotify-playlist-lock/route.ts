@@ -1,0 +1,39 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { listClasses } from "@/lib/yogo/signups";
+
+// Verify request is from Vercel Cron (Authorization: Bearer ${CRON_SECRET})
+function isAuthorized(req: Request): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  return req.headers.get("authorization") === `Bearer ${secret}`;
+}
+
+function isoDate(offsetDays: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return d.toISOString().slice(0, 10);
+}
+
+export async function GET(req: Request) {
+  if (!isAuthorized(req)) return new NextResponse("unauthorized", { status: 401 });
+
+  const today = isoDate(0);
+  const tomorrow = isoDate(1);
+  const all = (await listClasses(today, tomorrow)) as any[];
+  const now = Date.now();
+  const cutoff = 10 * 60 * 1000;
+
+  let locked = 0;
+  for (const k of all) {
+    const start = new Date(k.start_time).getTime();
+    if (now - start >= cutoff) {
+      const r = await db.waClassPlaylist.updateMany({
+        where: { yogoClassId: k.id, locked: false },
+        data: { locked: true },
+      });
+      locked += r.count;
+    }
+  }
+  return NextResponse.json({ ok: true, locked });
+}
