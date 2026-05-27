@@ -3,7 +3,12 @@ import { getSession } from "@/lib/auth";
 import { randomBytes } from "node:crypto";
 
 const SPOTIFY_AUTHORIZE = "https://accounts.spotify.com/authorize";
-const SCOPES = "playlist-modify-public playlist-modify-private";
+const SCOPES = [
+  "playlist-modify-public",
+  "playlist-modify-private",
+  "playlist-read-private",
+  "playlist-read-collaborative",
+].join(" ");
 
 export async function GET(req: Request) {
   const role = await getSession();
