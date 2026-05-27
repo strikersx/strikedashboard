@@ -81,7 +81,7 @@ async function sendOnce(phoneE164: string, customer: TrialAttendee, dateKey: str
       data: {
         phoneE164,
         kind: "template",
-        payload: JSON.stringify({ template: templateName, name: customer.first_name ?? "" }),
+        payload: JSON.stringify({ templateName, language: LANGUAGE_CODE, parameterCount: 1 }),
         status: "pending",
         templateKey: `trial_followup:${dateKey}`,
       },
