@@ -26,3 +26,6 @@ leads-*.csv
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# Pre-apply schema dumps (may contain schema details; never commit)
+backups/
