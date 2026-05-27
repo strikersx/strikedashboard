@@ -130,3 +130,11 @@ model WaBlockedArtist {
   addedBy         String
   addedAt         DateTime @default(now())
 }
+
+model WaAllowedArtist {
+  spotifyArtistId String   @id
+  artistName      String
+  reason          String?
+  addedBy         String
+  addedAt         DateTime @default(now())
+}

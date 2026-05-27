@@ -9,6 +9,7 @@ export type EvaluateResult =
       trackUri: string;
       artistName: string;
       artistIds: string[];
+      allowlistedArtistId?: string;
     }
   | {
       outcome: "reject_genre";
@@ -44,6 +45,11 @@ interface SpotifyArtist {
   genres: string[];
 }
 
+// Strip diacritics so "axé" matches "axe music", "modão" matches "modao", etc.
+function norm(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+}
+
 export async function evaluateTrack(trackId: string): Promise<EvaluateResult> {
   const trackRes = await spotifyFetch(`/v1/tracks/${trackId}`);
   if (!trackRes.ok) throw new Error(`Track lookup failed: ${trackRes.status}`);
@@ -51,7 +57,7 @@ export async function evaluateTrack(trackId: string): Promise<EvaluateResult> {
   const artistIds = track.artists.map((a) => a.id);
   const primaryArtistName = track.artists[0]?.name ?? "Unknown";
 
-  // Reject explicit content outright (Marcelo opens at the gym; no explicit lyrics in class)
+  // Marcelo's hard rule: no explicit content at the gym — overrides allowlist
   if (track.explicit) {
     return {
       outcome: "reject_explicit",
@@ -60,7 +66,7 @@ export async function evaluateTrack(trackId: string): Promise<EvaluateResult> {
     };
   }
 
-  // Check artist ID blocklist first (precise)
+  // Block first (precise artist ID match)
   const artistBlocks = await db.waBlockedArtist.findMany({
     where: { spotifyArtistId: { in: artistIds } },
   });
@@ -74,22 +80,37 @@ export async function evaluateTrack(trackId: string): Promise<EvaluateResult> {
     };
   }
 
-  // Fetch full artist objects (genres + canonical names)
+  // Allowlist short-circuits keyword filter (e.g. "Poesia Acústica" must not be
+  // caught by "acoustic" / "acústico" keywords)
+  const artistAllows = await db.waAllowedArtist.findMany({
+    where: { spotifyArtistId: { in: artistIds } },
+  });
+
   const artistsRes = await spotifyFetch(`/v1/artists?ids=${artistIds.join(",")}`);
   if (!artistsRes.ok) throw new Error(`Artist lookup failed: ${artistsRes.status}`);
   const artistsBody = (await artistsRes.json()) as { artists: SpotifyArtist[] };
   const resolvedPrimaryName = artistsBody.artists[0]?.name ?? primaryArtistName;
 
-  const allGenres = artistsBody.artists.flatMap((a) => a.genres.map((g) => g.toLowerCase()));
-  const allArtistNames = artistsBody.artists.map((a) => (a.name ?? "").toLowerCase());
-  const trackNameLower = (track.name ?? "").toLowerCase();
+  if (artistAllows.length > 0) {
+    return {
+      outcome: "accept",
+      trackId: track.id,
+      trackName: track.name,
+      trackUri: track.uri,
+      artistName: resolvedPrimaryName,
+      artistIds,
+      allowlistedArtistId: artistAllows[0].spotifyArtistId,
+    };
+  }
 
-  // Load active keyword blocklist once
+  const allGenres = artistsBody.artists.flatMap((a) => a.genres.map(norm));
+  const allArtistNames = artistsBody.artists.map((a) => norm(a.name ?? ""));
+  const trackNameNorm = norm(track.name ?? "");
+
   const blocked = await db.waBlockedGenre.findMany({ where: { active: true } });
 
-  // Match keyword against any of: artist genres, artist names, track name
   for (const b of blocked) {
-    const kw = b.keyword.toLowerCase();
+    const kw = norm(b.keyword);
     if (allGenres.some((g) => g.includes(kw))) {
       return {
         outcome: "reject_genre",
@@ -108,7 +129,7 @@ export async function evaluateTrack(trackId: string): Promise<EvaluateResult> {
         artistName: resolvedPrimaryName,
       };
     }
-    if (trackNameLower.includes(kw)) {
+    if (trackNameNorm.includes(kw)) {
       return {
         outcome: "reject_genre",
         matchedKeyword: b.keyword,

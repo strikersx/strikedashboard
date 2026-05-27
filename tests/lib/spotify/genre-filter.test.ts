@@ -10,6 +10,7 @@ const {
   artistDeleteManyMock,
   artistCreateMock,
   artistFindManyMock,
+  allowedArtistFindManyMock,
   spotifyFindUniqueMock,
   spotifyUpsertMock,
 } = vi.hoisted(() => ({
@@ -19,6 +20,7 @@ const {
   artistDeleteManyMock: vi.fn(),
   artistCreateMock: vi.fn(),
   artistFindManyMock: vi.fn(),
+  allowedArtistFindManyMock: vi.fn(),
   spotifyFindUniqueMock: vi.fn(),
   spotifyUpsertMock: vi.fn(),
 }));
@@ -34,6 +36,9 @@ vi.mock("@/lib/db", () => ({
       deleteMany: artistDeleteManyMock,
       create: artistCreateMock,
       findMany: artistFindManyMock,
+    },
+    waAllowedArtist: {
+      findMany: allowedArtistFindManyMock,
     },
     spotifyToken: {
       findUnique: spotifyFindUniqueMock,
@@ -54,6 +59,7 @@ describe("evaluateTrack", () => {
     artistDeleteManyMock.mockReset();
     artistCreateMock.mockReset();
     artistFindManyMock.mockReset();
+    allowedArtistFindManyMock.mockReset();
     spotifyFindUniqueMock.mockReset();
     spotifyUpsertMock.mockReset();
     __resetTokenCacheForTests();
@@ -62,8 +68,9 @@ describe("evaluateTrack", () => {
     process.env.SPOTIFY_CLIENT_ID = "cid";
     process.env.SPOTIFY_CLIENT_SECRET = "csec";
 
-    // Default: no blocked artists
+    // Default: no blocked artists, no allowed artists
     artistFindManyMock.mockResolvedValue([]);
+    allowedArtistFindManyMock.mockResolvedValue([]);
 
     // Default: token available
     const enc = encryptToken("rt");
@@ -245,6 +252,94 @@ describe("evaluateTrack", () => {
     if (result.outcome === "reject_genre") {
       expect(result.matchedAgainst).toBe("track_name");
     }
+  });
+
+  it("matches keyword across diacritic variants (axé ↔ axe)", async () => {
+    // Keyword stored without accent, artist genre has accent — should still match
+    genreFindManyMock.mockResolvedValue([{ keyword: "axe", active: true }]);
+    artistFindManyMock.mockResolvedValue([]);
+
+    mockSpotify(
+      { id: "tA", name: "Foo", uri: "spotify:track:tA", artists: [{ id: "a" }] },
+      { a: { name: "Some Artist", genres: ["Axé Bahia"] } }
+    );
+
+    const result = await evaluateTrack("tA");
+    expect(result.outcome).toBe("reject_genre");
+  });
+
+  it("matches keyword with accent against text without accent", async () => {
+    // Keyword has accent, track name doesn't — normalization on both sides
+    genreFindManyMock.mockResolvedValue([{ keyword: "modão", active: true }]);
+    artistFindManyMock.mockResolvedValue([]);
+
+    mockSpotify(
+      { id: "tB", name: "Modao Sertanejo", uri: "spotify:track:tB", artists: [{ id: "a" }] },
+      { a: { name: "Some Artist", genres: ["country"] } }
+    );
+
+    const result = await evaluateTrack("tB");
+    expect(result.outcome).toBe("reject_genre");
+    if (result.outcome === "reject_genre") {
+      expect(result.matchedAgainst).toBe("track_name");
+    }
+  });
+
+  it("allowlist overrides keyword filter", async () => {
+    // "acoustic" keyword would normally catch "Poesia Acústica" via artist name,
+    // but allowlist short-circuits and accepts
+    genreFindManyMock.mockResolvedValue([{ keyword: "acoustic", active: true }]);
+    artistFindManyMock.mockResolvedValue([]);
+    allowedArtistFindManyMock.mockResolvedValue([
+      { spotifyArtistId: "poesia-id", artistName: "Poesia Acústica" },
+    ]);
+
+    mockSpotify(
+      { id: "tC", name: "Cypher 14", uri: "spotify:track:tC", artists: [{ id: "poesia-id" }] },
+      { "poesia-id": { name: "Poesia Acústica", genres: ["brazilian trap"] } }
+    );
+
+    const result = await evaluateTrack("tC");
+    expect(result.outcome).toBe("accept");
+    if (result.outcome === "accept") {
+      expect(result.allowlistedArtistId).toBe("poesia-id");
+    }
+  });
+
+  it("allowlist does NOT override explicit-reject", async () => {
+    // Marcelo's hard rule: explicit blocks even allowlisted artists
+    genreFindManyMock.mockResolvedValue([]);
+    artistFindManyMock.mockResolvedValue([]);
+    allowedArtistFindManyMock.mockResolvedValue([
+      { spotifyArtistId: "poesia-id", artistName: "Poesia Acústica" },
+    ]);
+
+    mockSpotify(
+      { id: "tD", name: "Explicit Cypher", uri: "spotify:track:tD", explicit: true, artists: [{ id: "poesia-id" }] },
+      { "poesia-id": { name: "Poesia Acústica", genres: ["brazilian trap"] } }
+    );
+
+    const result = await evaluateTrack("tD");
+    expect(result.outcome).toBe("reject_explicit");
+  });
+
+  it("allowlist does NOT override artist blocklist", async () => {
+    // Defensive: if an artist is both blocked and allowed, blocklist wins
+    genreFindManyMock.mockResolvedValue([]);
+    artistFindManyMock.mockResolvedValue([
+      { spotifyArtistId: "x", artistName: "Banned" },
+    ]);
+    allowedArtistFindManyMock.mockResolvedValue([
+      { spotifyArtistId: "x", artistName: "Banned" },
+    ]);
+
+    mockSpotify(
+      { id: "tE", name: "Foo", uri: "spotify:track:tE", artists: [{ id: "x" }] },
+      { x: { name: "Banned", genres: ["rock"] } }
+    );
+
+    const result = await evaluateTrack("tE");
+    expect(result.outcome).toBe("reject_artist");
   });
 
   it("accept track ranks below explicit-reject even when explicit AND blocked", async () => {

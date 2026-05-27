@@ -40,7 +40,10 @@ const SEED_KEYWORDS = [
 
   // Track-name keywords (matched against track.name)
   "putaria", "desabafo",
-  "remix lento", "versão acústica", "acústico",
+  "remix lento", "versão acústica", "acústico", "acoustic",
+
+  // Subgenres
+  "sad rap",
 ];
 
 async function main() {
