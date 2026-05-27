@@ -65,7 +65,7 @@ export function summarizeDetails(details: SendDetail[]): SendSummary {
     if (d.outcome === "sent") summary.sent++;
     else if (d.outcome === "skipped") summary.skipped++;
     else if (d.outcome === "failed") summary.failed++;
-    else summary.dry++;
+    else if (d.outcome === "dry") summary.dry++;
   }
   return summary;
 }
