@@ -16,7 +16,7 @@ iteration	dimension	classification	severity	title	parent
 15	error_path	new	CRITICAL	G3 fails WA_GROUP_INVITE_URL unset	-
 16	error_path	new	CRITICAL	G4 fails URL shape ok fingerprint mismatch	#15
 17	temporal	new	MEDIUM	Fingerprint confirmed exactly 24h ago	-
-18	concurrent	new	CRITICAL	Two admins click Convidar todos within 1s	-
+18	concurrent	new	CRITICAL	Same operator double-clicks or opens two tabs within 1s	-
 19	concurrent	new	HIGH	Admin clicks Pause mid-batch at 7/32	-
 20	concurrent	new	HIGH	Resume after pause picks up remaining 25	#19
 21	integration	new	MEDIUM	Meta returns 429 on phone 5 retry succeeds	-

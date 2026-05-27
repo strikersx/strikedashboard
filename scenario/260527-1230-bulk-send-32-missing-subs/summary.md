@@ -37,7 +37,7 @@ high_severity_found      = 13 × 3   = 39
 
 ## Top 5 risks to address in PR-G
 
-1. **(Crit #18)** Two admins clicking within 1s — enforce concurrency with a DB-level unique on `WaBatch (kind, status="open")`. In-code check is too late.
+1. **(Crit #18)** Same operator double-clicks or opens two tabs within 1s — only `admin` role exists, so the race is same-session. Enforce concurrency with a DB-level unique on `WaBatch (kind, status="open")`. In-code check is too late.
 2. **(Crit #22)** Meta returns 401 mid-batch — abort must transition `WaBatch.status` away from `"open"` so the unique releases. Otherwise next admin gets 409 forever.
 3. **(Crit #23)** Meta template REJECTED — 503 with the specific error code. Cache TTL behaviour on PENDING needs a written decision.
 4. **(Crit #15, #16)** Preflight URL gates — distinguish 400 (config error, operator can fix) from 423 (kill switch). UI needs both banners.

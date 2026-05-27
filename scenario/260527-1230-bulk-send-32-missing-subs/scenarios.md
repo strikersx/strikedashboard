@@ -463,29 +463,29 @@ it("allows fingerprint confirmation aged just under 24h, rejects just over", asy
 
 ---
 
-## #18 — [concurrent] Two admins click Convidar todos within 1 second
+## #18 — [concurrent] Same operator double-clicks or opens two tabs within 1 second
 
 **Severity:** Critical
 **Maps to gate:** G11
 
 **Given:**
-- Two independent sessions (Ricardo + Marcelo), both admins, both with valid fingerprint confirmation
+- Single `admin` role (the project has only one auth tier; Ricardo and Marcelo share the `admin` password). Concurrent requests come from the same cookie via double-click, two tabs, or a flaky mobile network re-submitting.
 - No `WaBatch` row exists with `kind="invite"` `status="open"`
 
 **When:**
-- Both POST `{ force:false, dryRun:false }` within 1s
+- Two POSTs with `{ force:false, dryRun:false }` land within 1s, possibly on different Vercel function instances
 
 **Then:**
 - One request acquires the lock via unique `(kind, status="open")` constraint on `WaBatch`
 - The other receives a Prisma `P2002` unique violation → endpoint catches it → HTTP 409 `batch_in_flight`
 - Only ONE batch ever runs
 
-**Edge factors:** The race is real in serverless — Vercel may spin two function instances. The unique constraint MUST be enforced at the DB layer, not in code. Verify Prisma generates the correct migration.
+**Edge factors:** Vercel spins independent function instances for concurrent requests. In-code "already running?" checks are not enough — the unique constraint MUST be enforced at the DB layer. Verify the Prisma migration emits the right `UNIQUE` SQL.
 
 **Test outline:**
 ```ts
-it("returns 409 batch_in_flight on concurrent click, only one batch row exists", async () => {
-  /* fire two parallel POSTs, assert exactly 1 WaBatch row */
+it("returns 409 batch_in_flight on concurrent click (same session), only one batch row exists", async () => {
+  /* fire two parallel POSTs from the same cookie, assert exactly 1 WaBatch row */
 });
 ```
 

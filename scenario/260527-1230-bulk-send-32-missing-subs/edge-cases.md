@@ -6,7 +6,7 @@ Cherry-picked from `scenarios.md`. Each is a concrete test case ready to drop in
 
 | # | Scenario | Bug magnet |
 |---|---|---|
-| #18 | Two admins click within 1s | Race condition on `WaBatch` unique constraint. Must enforce at DB layer; in-code check is too late. |
+| #18 | Same operator double-clicks / two tabs within 1s | Race condition on `WaBatch` unique constraint. Must enforce at DB layer; in-code check is too late. (Only one admin role exists — concurrent requests come from the same session.) |
 | #22 | Meta returns 401 mid-batch | Batch must not get stuck in `status="open"` after auth failure — otherwise next attempt = 409 forever. |
 | #23 | Meta template status = REJECTED | Preflight cache TTL boundary. Test PENDING/REJECTED/PAUSED/DISABLED all block; only APPROVED allows. |
 | #15 | WA_GROUP_INVITE_URL unset | 400 vs 423 distinction matters for UI banner (config error vs kill switch). |
