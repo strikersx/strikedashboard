@@ -29,9 +29,11 @@ model WaInbound {
 model WaSession {
   phoneE164       String    @id
   state           String    @default("IDLE")
-  pendingClassId  Int?
-  pendingSignupId Int?
-  expiresAt       DateTime?
+  pendingClassId     Int?
+  pendingSignupId    Int?
+  pendingSongClassId Int?
+  pendingTrackId     String?
+  expiresAt          DateTime?
   version         Int       @default(0)
   updatedAt       DateTime  @updatedAt
   contact         WaContact @relation(fields: [phoneE164], references: [phoneE164])
