@@ -92,3 +92,122 @@ export async function createClassPlaylist(
 
   return { spotifyPlaylistId: created.id, created: true };
 }
+
+export interface InsertSongArgs {
+  yogoClassId: number;
+  trackUri: string;
+}
+
+export interface InsertSongResult {
+  position: number;
+}
+
+export async function insertSongAtNextPosition(args: InsertSongArgs): Promise<InsertSongResult> {
+  const playlist = await db.$transaction(async (tx) => {
+    return tx.waClassPlaylist.update({
+      where: { yogoClassId: args.yogoClassId },
+      data: { requestCount: { increment: 1 } },
+    });
+  });
+  const position = playlist.requestCount - 1;
+
+  const res = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/tracks`, {
+    method: "POST",
+    body: JSON.stringify({ uris: [args.trackUri], position }),
+  });
+  if (!res.ok) {
+    await db.waClassPlaylist.update({
+      where: { yogoClassId: args.yogoClassId },
+      data: { requestCount: { decrement: 1 } },
+    });
+    throw new Error(`Spotify add track failed: ${res.status}`);
+  }
+
+  return { position };
+}
+
+export async function removeSongAndRecompress(songRequestId: string): Promise<void> {
+  const req = await db.waSongRequest.findUnique({ where: { id: songRequestId } });
+  if (!req || req.status !== "active") return;
+
+  const playlist = await db.waClassPlaylist.findUnique({
+    where: { yogoClassId: req.yogoClassId },
+  });
+  if (!playlist) return;
+
+  const res = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/tracks`, {
+    method: "DELETE",
+    body: JSON.stringify({ tracks: [{ uri: req.spotifyTrackUri }] }),
+  });
+  if (!res.ok) throw new Error(`Spotify delete failed: ${res.status}`);
+
+  await db.$transaction([
+    db.waSongRequest.update({
+      where: { id: songRequestId },
+      data: { status: "cancelled_by_unbook" },
+    }),
+    db.waSongRequest.updateMany({
+      where: {
+        yogoClassId: req.yogoClassId,
+        status: "active",
+        position: { gt: req.position },
+      },
+      data: { position: { decrement: 1 } },
+    }),
+    db.waClassPlaylist.update({
+      where: { yogoClassId: req.yogoClassId },
+      data: { requestCount: { decrement: 1 } },
+    }),
+  ]);
+}
+
+export interface SwapSongArgs {
+  oldRequestId: string;
+  newTrackUri: string;
+  newTrackId: string;
+  newTrackName: string;
+  newArtistName: string;
+  contactId: string;
+}
+
+export async function swapSong(args: SwapSongArgs): Promise<{ position: number; newRequestId: string }> {
+  const old = await db.waSongRequest.findUnique({ where: { id: args.oldRequestId } });
+  if (!old || old.status !== "active") throw new Error("old request not active");
+  const playlist = await db.waClassPlaylist.findUnique({
+    where: { yogoClassId: old.yogoClassId },
+  });
+  if (!playlist) throw new Error("no playlist");
+
+  const delRes = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/tracks`, {
+    method: "DELETE",
+    body: JSON.stringify({ tracks: [{ uri: old.spotifyTrackUri }] }),
+  });
+  if (!delRes.ok) throw new Error(`Spotify delete failed: ${delRes.status}`);
+
+  const addRes = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/tracks`, {
+    method: "POST",
+    body: JSON.stringify({ uris: [args.newTrackUri], position: old.position }),
+  });
+  if (!addRes.ok) throw new Error(`Spotify insert failed: ${addRes.status}`);
+
+  const [, fresh] = await db.$transaction([
+    db.waSongRequest.update({
+      where: { id: args.oldRequestId },
+      data: { status: "swapped" },
+    }),
+    db.waSongRequest.create({
+      data: {
+        contactId: args.contactId,
+        yogoClassId: old.yogoClassId,
+        spotifyTrackId: args.newTrackId,
+        spotifyTrackName: args.newTrackName,
+        spotifyArtistName: args.newArtistName,
+        spotifyTrackUri: args.newTrackUri,
+        position: old.position,
+        status: "active",
+      },
+    }),
+  ]);
+
+  return { position: old.position, newRequestId: fresh.id };
+}
