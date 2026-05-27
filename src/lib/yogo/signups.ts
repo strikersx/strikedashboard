@@ -33,8 +33,13 @@ export async function listClasses(startDate: string, endDate: string): Promise<Y
 
 // Filter helper: keeps only classes that are not cancelled, have a seat free,
 // and the given user is not already booked into.
-export function bookableFor(klass: YogoClass, userId: number): boolean {
+export function bookableFor(klass: YogoClass, userId: number, now: Date = new Date()): boolean {
   if (klass.cancelled) return false;
+  // Reject classes that have already started — Yogo's listClasses returns
+  // all of today's classes including ones at 08:30 even when the user is
+  // querying at 22:00.
+  const start = parseClassStart(klass);
+  if (start && start.getTime() <= now.getTime()) return false;
   if (
     typeof klass.signup_count === "number" &&
     typeof klass.seats === "number" &&

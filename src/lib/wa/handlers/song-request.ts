@@ -3,7 +3,13 @@ import { sendText } from "@/lib/wa/meta";
 import { loadSession, transition, ttlFromNow, resetToIdle, type SessionRow } from "@/lib/wa/session";
 import { parseSpotifyTrackId } from "@/lib/wa/parser";
 import { evaluateTrack } from "@/lib/spotify/genre-filter";
-import { insertSongAtNextPosition, swapSong, removeSongAndRecompress } from "@/lib/spotify/playlist-manager";
+import {
+  insertSongAtNextPosition,
+  swapSong,
+  removeSongAndRecompress,
+  createClassPlaylist,
+} from "@/lib/spotify/playlist-manager";
+import { listClasses, parseClassStart } from "@/lib/yogo/signups";
 
 const OFFER_TEXT =
   "Queres pedir uma música para esta aula? Manda o link do Spotify ou diz 'não' para ignorar.";
@@ -14,8 +20,39 @@ const HINT_TEXT =
 const WINDOW_CLOSED =
   "Esta aula já começou há mais de 10 min — pedidos fechados.";
 
+// Create the per-class playlist on demand if the daily cron hasn't run yet
+// (e.g. user reserves tomorrow's class today). Returns null if creation fails.
+export async function ensureClassPlaylist(yogoClassId: number) {
+  const existing = await db.waClassPlaylist.findUnique({ where: { yogoClassId } });
+  if (existing) return existing;
+
+  // Look up the class from Yogo to get name + start time
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const inSevenDaysIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const classes = await listClasses(todayIso, inSevenDaysIso);
+  const klass = classes.find((k) => k.id === yogoClassId);
+  if (!klass) return null;
+  // Skip non-group classes (PTs) — playlists are only for group classes
+  if (typeof klass.seats === "number" && klass.seats <= 1) return null;
+  const start = parseClassStart(klass);
+  if (!start) return null;
+
+  try {
+    await createClassPlaylist({
+      yogoClassId,
+      className: klass.class_type?.name ?? `Class ${yogoClassId}`,
+      startsAtIso: start.toISOString(),
+    });
+  } catch {
+    return null;
+  }
+  return db.waClassPlaylist.findUnique({ where: { yogoClassId } });
+}
+
 export async function offerSongRequest(phoneE164: string, yogoClassId: number): Promise<void> {
-  const playlist = await db.waClassPlaylist.findUnique({ where: { yogoClassId } });
+  const playlist = await ensureClassPlaylist(yogoClassId);
   if (!playlist || playlist.locked) return;
 
   const existing = await db.waSongRequest.findFirst({

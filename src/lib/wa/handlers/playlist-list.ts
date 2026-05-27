@@ -1,6 +1,6 @@
-import { db } from "@/lib/db";
 import { sendText } from "@/lib/wa/meta";
 import { userBookingsNext24h } from "@/lib/yogo/signups";
+import { ensureClassPlaylist } from "@/lib/wa/handlers/song-request";
 
 const NO_CLASSES =
   "Sem aulas em grupo reservadas nas próximas 24h. Reserva uma com 'reserva' primeiro 🥷";
@@ -20,19 +20,15 @@ export async function handlePlaylistList(phoneE164: string): Promise<void> {
     return;
   }
 
-  const playlists = await db.waClassPlaylist.findMany({
-    where: { yogoClassId: { in: bookings.map((b) => b.yogoClassId) } },
-  });
-  const byClass = new Map(playlists.map((p) => [p.yogoClassId, p.spotifyPlaylistId]));
-
   const lines = ["As tuas próximas aulas:", ""];
   let any = false;
   for (let i = 0; i < bookings.length; i++) {
     const b = bookings[i];
-    const plId = byClass.get(b.yogoClassId);
-    if (!plId) continue;
+    // Create the playlist on demand if the daily cron hasn't run yet
+    const playlist = await ensureClassPlaylist(b.yogoClassId);
+    if (!playlist) continue;
     lines.push(`${i + 1}. ${formatTime(b.startsAtIso)} — ${b.className}`);
-    lines.push(`   https://open.spotify.com/playlist/${plId}`);
+    lines.push(`   https://open.spotify.com/playlist/${playlist.spotifyPlaylistId}`);
     any = true;
   }
 

@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Use vi.hoisted so mock variables are available when vi.mock factory runs (hoisted to top)
 const {
   sendTextMock,
   userBookingsNext24hMock,
-  waClassPlaylistFindManyMock,
+  ensureClassPlaylistMock,
 } = vi.hoisted(() => ({
   sendTextMock: vi.fn(),
   userBookingsNext24hMock: vi.fn(),
-  waClassPlaylistFindManyMock: vi.fn(),
+  ensureClassPlaylistMock: vi.fn(),
 }));
 
 vi.mock("@/lib/wa/meta", async (importOriginal) => {
@@ -21,14 +20,9 @@ vi.mock("@/lib/yogo/signups", async (importOriginal) => {
   return { ...actual, userBookingsNext24h: userBookingsNext24hMock };
 });
 
-vi.mock("@/lib/db", () => {
-  const dbMock = {
-    waClassPlaylist: {
-      findMany: waClassPlaylistFindManyMock,
-    },
-  };
-  return { db: dbMock };
-});
+vi.mock("@/lib/wa/handlers/song-request", () => ({
+  ensureClassPlaylist: ensureClassPlaylistMock,
+}));
 
 import { handlePlaylistList } from "@/lib/wa/handlers/playlist-list";
 
@@ -59,7 +53,7 @@ describe("handlePlaylistList", () => {
       PHONE,
       "Sem aulas em grupo reservadas nas próximas 24h. Reserva uma com 'reserva' primeiro 🥷",
     );
-    expect(waClassPlaylistFindManyMock).not.toHaveBeenCalled();
+    expect(ensureClassPlaylistMock).not.toHaveBeenCalled();
   });
 
   it("two bookings with playlists → message contains both class names and spotify URLs", async () => {
@@ -67,10 +61,9 @@ describe("handlePlaylistList", () => {
       { yogoClassId: 10, className: "Striking", startsAtIso: "2026-05-27T19:30:00.000Z" },
       { yogoClassId: 20, className: "BJJ", startsAtIso: "2026-05-27T21:00:00.000Z" },
     ]);
-    waClassPlaylistFindManyMock.mockResolvedValueOnce([
-      PLAYLIST_ROW(10, "playlist-abc"),
-      PLAYLIST_ROW(20, "playlist-xyz"),
-    ]);
+    ensureClassPlaylistMock
+      .mockResolvedValueOnce(PLAYLIST_ROW(10, "playlist-abc"))
+      .mockResolvedValueOnce(PLAYLIST_ROW(20, "playlist-xyz"));
 
     await handlePlaylistList(PHONE);
 
@@ -82,11 +75,11 @@ describe("handlePlaylistList", () => {
     expect(msg).toContain("https://open.spotify.com/playlist/playlist-xyz");
   });
 
-  it("bookings exist but no WaClassPlaylist rows → sends NO_CLASSES message", async () => {
+  it("bookings exist but ensureClassPlaylist returns null for all → sends NO_CLASSES message", async () => {
     userBookingsNext24hMock.mockResolvedValueOnce([
       { yogoClassId: 10, className: "Striking", startsAtIso: "2026-05-27T19:30:00.000Z" },
     ]);
-    waClassPlaylistFindManyMock.mockResolvedValueOnce([]);
+    ensureClassPlaylistMock.mockResolvedValueOnce(null);
 
     await handlePlaylistList(PHONE);
 
@@ -97,15 +90,14 @@ describe("handlePlaylistList", () => {
     );
   });
 
-  it("mix: one booking has playlist, another doesn't → only includes the one with playlist", async () => {
+  it("mix: one booking ensures playlist, another doesn't → only includes the one with playlist", async () => {
     userBookingsNext24hMock.mockResolvedValueOnce([
       { yogoClassId: 10, className: "Striking", startsAtIso: "2026-05-27T19:30:00.000Z" },
       { yogoClassId: 20, className: "BJJ", startsAtIso: "2026-05-27T21:00:00.000Z" },
     ]);
-    // Only one playlist row
-    waClassPlaylistFindManyMock.mockResolvedValueOnce([
-      PLAYLIST_ROW(10, "playlist-abc"),
-    ]);
+    ensureClassPlaylistMock
+      .mockResolvedValueOnce(PLAYLIST_ROW(10, "playlist-abc"))
+      .mockResolvedValueOnce(null);
 
     await handlePlaylistList(PHONE);
 
@@ -116,18 +108,14 @@ describe("handlePlaylistList", () => {
     expect(msg).not.toContain("BJJ");
   });
 
-  it("queried db with yogoClassIds from bookings", async () => {
+  it("calls ensureClassPlaylist with each booking's yogoClassId", async () => {
     userBookingsNext24hMock.mockResolvedValueOnce([
       { yogoClassId: 42, className: "MMA", startsAtIso: "2026-05-27T19:30:00.000Z" },
     ]);
-    waClassPlaylistFindManyMock.mockResolvedValueOnce([
-      PLAYLIST_ROW(42, "playlist-mma"),
-    ]);
+    ensureClassPlaylistMock.mockResolvedValueOnce(PLAYLIST_ROW(42, "playlist-mma"));
 
     await handlePlaylistList(PHONE);
 
-    expect(waClassPlaylistFindManyMock).toHaveBeenCalledWith({
-      where: { yogoClassId: { in: [42] } },
-    });
+    expect(ensureClassPlaylistMock).toHaveBeenCalledWith(42);
   });
 });

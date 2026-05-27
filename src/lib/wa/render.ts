@@ -82,7 +82,7 @@ export function renderClassList(
 
   const bodyText =
     tomorrowDropped > 0
-      ? `Escolhe a aula. (+${tomorrowDropped} de amanhã não cabem; escreve a hora para essas)`
+      ? `Escolhe a aula. (Mais ${tomorrowDropped} aula${tomorrowDropped === 1 ? "" : "s"} amanhã — escreve a hora para reservar uma dessas, ex: 19:30)`
       : "Escolhe a aula para reservar:";
 
   return { type: "list", bodyText, buttonText: "Ver aulas", sections };
