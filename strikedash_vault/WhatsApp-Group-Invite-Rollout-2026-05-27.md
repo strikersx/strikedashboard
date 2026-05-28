@@ -1,8 +1,8 @@
 ---
+date: 2026-05-27
+status: blocked-sandbox-limit
 title: WhatsApp Group Invite — Rollout 2026-05-27
 type: reference
-status: pending-meta-approval
-date: 2026-05-27
 ---
 
 # WhatsApp Group Invite — Rollout Log
@@ -21,3 +21,15 @@ Branch: `feat/wa-group-invite`. Spec: `docs/superpowers/specs/2026-05-27-wa-grou
 
 ```
 https://chat.whatsapp.com/DGCaCWN19eM3kEXlWXipoE?s
+
+---
+
+## 2026-05-28 update — bloqueado por sandbox cap
+
+Status passou de `pending-meta-approval` para `blocked-sandbox-limit`.
+
+Template `convite_grupo_whatsapp` foi APROVADO pela Meta em 2026-05-28 (~04h após submissão).
+
+Test send para Ricardo (`+351912873698`) funcionou.
+
+Bulk send para 32 destinatários: 32× falhou com 131030 ("Recipient phone number not in allowed list"). Causa identificada: o `WA_PHONE_NUMBER_ID` aponta para o número sandbox grátis da Meta (`+1 555-647-8265`, verified_name

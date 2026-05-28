@@ -10,10 +10,25 @@ Central index for Striker's House Dashboard documentation.
 - [[WhatsApp-Bot-v1-Handoff-2026-05-25]] — session handoff: Slice 0 em PR #1, próxima acção = G2 phone spike
 - [[WhatsApp-Bot-Pending]] — Open follow-ups after v1 launch (operational, quality, growth, hygiene) — 2026-05-26
 - [[Spotify-Playlist-Per-Class-Design]] — Playlist Spotify por aula em grupo, request de música via WA bot, blocklist de géneros — 2026-05-26 (spec-locked)
+- [[StrikeLab-v3]] — Gamification spec v3.0 (original — superseded)
+- [[StrikeLab-v3.1-Refined]] — **Gamification refinada v3.1** após adversarial review (5 personas, 19 FATAL endereçadas) — 2026-05-28
+- [[StrikeLab-Convergence-Report]] — Síntese da ronda adversarial: o que mudou, o que ficou, próximos passos
+- [[StrikeLab-v3.2-final]] — **Spec consolidada FINAL** — 35 decisões aprovadas + 17 patches + 4 spike findings (2026-05-28)
+- [[StrikeLab-Pontuacao-Mapa]] — **Mapa completo do sistema de pontuação** — todos os triggers, boosts, prémios, patentes, mensagens
+- [[StrikeLab-Cobertura]] — **Coverage matrix** — 141 items mapeados spec ↔ docs ↔ tasks (45% Phase 0)
+- [[StrikeLab-Fluxo.canvas|StrikeLab-Fluxo (canvas)]] — Fluxo visual aluno → gates → triggers → ledgers → side effects
+- [[Yogo-StrikeLab-Gap-Report]] — Mapeamento API completo — tabela OK/gaps validada com dados reais
+- [Phase 0 Final Plan](../docs/superpowers/plans/2026-05-28-strikelab-phase-0-final.md) — 21 tarefas, ~37h, 2.5 semanas
+
+## API References
+
+- [[Yogo-API]] — Yogo Booking API: auth, endpoints, status semantics, recipes
+- [[Spotify-API]] — Spotify Web API: OAuth flow, scopes, quota modes (cause of 403), endpoints, troubleshooting
 
 ## Features
 
-_(To be added as features are completed)_
+- [[WhatsApp-Group-Invite-Rollout-2026-05-27]] — Bulk WhatsApp group invite from coverage page (PR #18+#23). **BLOQUEADO** por sandbox limit — ver handoff abaixo.
+- [[WhatsApp-Cloud-API-Sandbox-Limitation-2026-05-28]] — Caminho A (5-recipient allow-list) + caminho B (registar nº próprio + business verification) para escalar bulk send para 32+ destinatários.
 
 ## Data & Filtering
 
