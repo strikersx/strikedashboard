@@ -339,7 +339,7 @@ describe("handleSongInput", () => {
     });
     expect(sendTextMock).toHaveBeenCalledWith(
       PHONE,
-      "Vais ouvir Lose Yourself — Eminem 🎵\nConfirmar? (sim/não)",
+      "Vais ouvir *Lose Yourself* — Eminem 🎵\nConfirmar? (sim/não)",
     );
     expect(resetToIdleMock).not.toHaveBeenCalled();
     expect(songRequestCreateMock).not.toHaveBeenCalled();
@@ -419,15 +419,18 @@ describe("handleSongConfirm", () => {
         position: 1,
       }),
     });
-    expect(sendTextMock).toHaveBeenCalledWith(PHONE, "Adicionado! 🥷");
+    expect(sendTextMock.mock.calls[0][0]).toBe(PHONE);
+    expect(sendTextMock.mock.calls[0][1]).toContain("Adicionado! 🥷");
+    expect(sendTextMock.mock.calls[0][1]).toContain("Lose Yourself");
+    expect(sendTextMock.mock.calls[0][1]).toContain("Eminem");
     expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_CONFIRM_SESSION);
   });
 
-  it("'não' → no insert, no create, no message, session reset silently", async () => {
+  it("'não' → sends cancel confirmation, no insert, session reset", async () => {
     await handleSongConfirm(AWAIT_CONFIRM_SESSION, "não");
 
     expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_CONFIRM_SESSION);
-    expect(sendTextMock).not.toHaveBeenCalled();
+    expect(sendTextMock).toHaveBeenCalledWith(PHONE, "Ok, pedido cancelado 🥷");
     expect(insertSongAtNextPositionMock).not.toHaveBeenCalled();
     expect(songRequestCreateMock).not.toHaveBeenCalled();
     expect(evaluateTrackMock).not.toHaveBeenCalled();
@@ -492,7 +495,10 @@ describe("handleSwapConfirm", () => {
       newArtistName: ACCEPT_RESULT.artistName,
       contactId: PHONE,
     });
-    expect(sendTextMock).toHaveBeenCalledWith(PHONE, "Troca feita! 🥷");
+    expect(sendTextMock.mock.calls[0][0]).toBe(PHONE);
+    expect(sendTextMock.mock.calls[0][1]).toContain("Troca feita! 🥷");
+    expect(sendTextMock.mock.calls[0][1]).toContain(ACCEPT_RESULT.trackName);
+    expect(sendTextMock.mock.calls[0][1]).toContain(ACCEPT_RESULT.artistName);
     expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_SWAP_SESSION);
   });
 

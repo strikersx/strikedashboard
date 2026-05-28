@@ -88,6 +88,10 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
   }
 
   if (!session.pendingSongClassId) {
+    await sendText(
+      phoneE164,
+      "Não consegui ligar este pedido a uma aula tua. Diz 'reserva' para começar de novo 🥷",
+    );
     await resetToIdle(session);
     return;
   }
@@ -95,6 +99,10 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
 
   const playlist = await db.waClassPlaylist.findUnique({ where: { yogoClassId } });
   if (!playlist) {
+    await sendText(
+      phoneE164,
+      "A playlist desta aula ainda não está pronta. Tenta de novo daqui a 1min 🥷",
+    );
     await resetToIdle(session);
     return;
   }
@@ -179,7 +187,7 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
     });
     await sendText(
       phoneE164,
-      `Esta música tem conteúdo explícito e não pode tocar na aula. Tenta outra 🥷`
+      `*${result.trackName}* — ${result.artistName} tem conteúdo explícito 🚫\n\nA Strike não toca explícitas na aula. Procura a versão *Clean* / *Radio Edit* no Spotify e tenta de novo 🥷`
     );
     await resetToIdle(session);
     return;
@@ -191,11 +199,26 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
     pendingTrackId: result.trackId,
     expiresAt: ttlFromNow(),
   });
-  if (!t.ok) return;
+  if (!t.ok) {
+    // Race lost — session was bumped between dispatch and here. Tell the user
+    // something rather than silently dropping. Log for observability.
+    await db.waEvent.create({
+      data: {
+        kind: "SESSION_RACE",
+        phoneE164,
+        meta: JSON.stringify({ where: "handleSongInput.accept", trackId }),
+      },
+    }).catch(() => undefined);
+    await sendText(
+      phoneE164,
+      "Cruzaram-se mensagens. Diz 'reserva' e tenta de novo 🥷",
+    );
+    return;
+  }
 
   await sendText(
     phoneE164,
-    `Vais ouvir ${result.trackName} — ${result.artistName} 🎵\nConfirmar? (sim/não)`
+    `Vais ouvir *${result.trackName}* — ${result.artistName} 🎵\nConfirmar? (sim/não)`
   );
 }
 
@@ -204,6 +227,7 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
   const text = body.trim().toLowerCase();
 
   if (text === "não" || text === "nao" || text === "n" || text === "no") {
+    await sendText(phoneE164, "Ok, pedido cancelado 🥷");
     await resetToIdle(session);
     return;
   }
@@ -213,6 +237,7 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
   }
 
   if (!session.pendingSongClassId || !session.pendingTrackId) {
+    await sendText(phoneE164, "Perdi o contexto do pedido. Diz 'reserva' para começar de novo 🥷");
     await resetToIdle(session);
     return;
   }
@@ -221,6 +246,7 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
 
   const result = await evaluateTrack(trackId);
   if (result.outcome !== "accept") {
+    await sendText(phoneE164, "A música deixou de ser aceitável (verificação falhou). Tenta outra 🥷");
     await resetToIdle(session);
     return;
   }
@@ -236,7 +262,13 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
       pendingTrackId: trackId,
       expiresAt: ttlFromNow(),
     });
-    if (!t.ok) return;
+    if (!t.ok) {
+      await db.waEvent.create({
+        data: { kind: "SESSION_RACE", phoneE164, meta: JSON.stringify({ where: "handleSongConfirm.swap" }) },
+      }).catch(() => undefined);
+      await sendText(phoneE164, "Cruzaram-se mensagens. Diz 'reserva' e tenta de novo 🥷");
+      return;
+    }
     await sendText(
       phoneE164,
       `Já pediste "${existing.spotifyTrackName} — ${existing.spotifyArtistName}" para esta aula.\nQueres trocar pela nova (${result.trackName} — ${result.artistName})? (sim/não)`
@@ -244,10 +276,28 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
     return;
   }
 
-  const ins = await insertSongAtNextPosition({
-    yogoClassId,
-    trackUri: result.trackUri,
-  });
+  let ins;
+  try {
+    ins = await insertSongAtNextPosition({
+      yogoClassId,
+      trackUri: result.trackUri,
+    });
+  } catch (err) {
+    await db.waEvent.create({
+      data: {
+        kind: "SONG_INSERT_FAIL",
+        phoneE164,
+        meta: JSON.stringify({ yogoClassId, trackUri: result.trackUri, error: String(err) }),
+      },
+    }).catch(() => undefined);
+    await sendText(
+      phoneE164,
+      "Falhou a adicionar à playlist (erro no Spotify). Tenta outra vez daqui a 1min 🥷",
+    );
+    await resetToIdle(session);
+    return;
+  }
+
   await db.waSongRequest.create({
     data: {
       contactId: phoneE164,
@@ -261,7 +311,15 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
     },
   });
 
-  await sendText(phoneE164, "Adicionado! 🥷");
+  const playlist = await db.waClassPlaylist.findUnique({ where: { yogoClassId } });
+  const playlistLink = playlist
+    ? `\nhttps://open.spotify.com/playlist/${playlist.spotifyPlaylistId}`
+    : "";
+  const positionMsg = ins.position === 0 ? "1ª" : `${ins.position + 1}ª`;
+  await sendText(
+    phoneE164,
+    `Adicionado! 🥷\n\n*${result.trackName}* — ${result.artistName}\nVai tocar na ${positionMsg} posição da playlist da tua aula.${playlistLink}`
+  );
   await resetToIdle(session);
 }
 
@@ -323,6 +381,13 @@ export async function handleSwapConfirm(session: SessionRow, body: string): Prom
     contactId: phoneE164,
   });
 
-  await sendText(phoneE164, "Troca feita! 🥷");
+  const playlist = await db.waClassPlaylist.findUnique({ where: { yogoClassId } });
+  const playlistLink = playlist
+    ? `\nhttps://open.spotify.com/playlist/${playlist.spotifyPlaylistId}`
+    : "";
+  await sendText(
+    phoneE164,
+    `Troca feita! 🥷\n\n*${result.trackName}* — ${result.artistName}\nSubstituiu a anterior na mesma posição.${playlistLink}`
+  );
   await resetToIdle(session);
 }
