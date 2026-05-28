@@ -18,6 +18,7 @@ import {
 import { parseDateTime } from "@/lib/wa/parser";
 import { resetToIdle, transition, ttlFromNow, type SessionRow } from "@/lib/wa/session";
 import { removeSongOnCancel } from "@/lib/wa/handlers/song-request";
+import { endInteraction } from "@/lib/wa/handlers/menu";
 
 const NO_PLAN_LOOKUP = "Não te encontrámos no sistema. Escreve directamente ao Marcelo.";
 const NO_SIGNUPS = "Não tens aulas marcadas.";
@@ -125,7 +126,7 @@ export async function handleCancelPick(session: SessionRow, signupIdRaw: string)
   if (!customer) {
     await db.waEvent.create({ data: { kind: "LOOKUP_MISS", phoneE164: session.phoneE164 } });
     await sendText(session.phoneE164, NO_PLAN_LOOKUP);
-    await resetToIdle(session);
+    await endInteraction(session, session.phoneE164);
     return;
   }
 
@@ -133,7 +134,7 @@ export async function handleCancelPick(session: SessionRow, signupIdRaw: string)
   const target = all.find((s) => s.id === signupId && isCancellable(s));
   if (!target) {
     await sendText(session.phoneE164, ERR_NOT_FOUND);
-    await resetToIdle(session);
+    await endInteraction(session, session.phoneE164);
     return;
   }
 
@@ -163,7 +164,7 @@ export async function handleCancelPickByText(session: SessionRow, text: string):
   if (!customer) {
     await db.waEvent.create({ data: { kind: "LOOKUP_MISS", phoneE164: session.phoneE164 } });
     await sendText(session.phoneE164, NO_PLAN_LOOKUP);
-    await resetToIdle(session);
+    await endInteraction(session, session.phoneE164);
     return;
   }
   const all = await listFutureSignups(customer.id, isoDate(0), isoDate(FUTURE_LOOKAHEAD_DAYS));
@@ -199,7 +200,7 @@ export async function handleConfirmCancel(session: SessionRow): Promise<void> {
   const phoneE164 = session.phoneE164;
   if (!session.pendingSignupId) {
     await sendText(phoneE164, ERR_RACE);
-    await resetToIdle(session);
+    await endInteraction(session, session.phoneE164);
     return;
   }
 
@@ -243,12 +244,12 @@ export async function handleConfirmCancel(session: SessionRow): Promise<void> {
     });
     await sendText(phoneE164, ERR_SERVER);
   }
-  await resetToIdle(session);
+  await endInteraction(session, session.phoneE164);
 }
 
 export async function handleAbortCancel(session: SessionRow): Promise<void> {
   await sendText(session.phoneE164, "Ok, mantenho a marcação.");
-  await resetToIdle(session);
+  await endInteraction(session, session.phoneE164);
 }
 
 function toSignupLite(s: YogoSignup): SignupLite {

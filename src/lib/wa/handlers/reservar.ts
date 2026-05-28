@@ -5,6 +5,7 @@ import { sendText, sendList, sendButton } from "@/lib/wa/meta";
 import { renderClassList, renderConfirmBook, type YogoClassLite } from "@/lib/wa/render";
 import { transition, resetToIdle, ttlFromNow, type SessionRow } from "@/lib/wa/session";
 import { offerSongRequest } from "@/lib/wa/handlers/song-request";
+import { endInteraction } from "@/lib/wa/handlers/menu";
 
 const FALLBACK_LOOKUP_MISS = "Não te encontrámos no sistema. Escreve directamente ao Marcelo.";
 const NO_BOOKABLE = "Sem aulas disponíveis para reservar nas próximas 48h.";
@@ -78,7 +79,7 @@ export async function handleClassPick(session: SessionRow, classIdRaw: string): 
   const klass = all.find((k) => k.id === classId);
   if (!klass) {
     await sendText(session.phoneE164, "Aula já não está disponível. Diz reserva para ver as actuais.");
-    await resetToIdle(session);
+    await endInteraction(session, session.phoneE164);
     return;
   }
 
@@ -99,7 +100,7 @@ export async function handleConfirmBook(session: SessionRow): Promise<void> {
   const phoneE164 = session.phoneE164;
   if (!session.pendingClassId) {
     await sendText(phoneE164, ERR_RACE);
-    await resetToIdle(session);
+    await endInteraction(session, session.phoneE164);
     return;
   }
 
@@ -107,7 +108,7 @@ export async function handleConfirmBook(session: SessionRow): Promise<void> {
   if (!customer) {
     await db.waEvent.create({ data: { kind: "LOOKUP_MISS", phoneE164 } });
     await sendText(phoneE164, FALLBACK_LOOKUP_MISS);
-    await resetToIdle(session);
+    await endInteraction(session, session.phoneE164);
     return;
   }
 
@@ -139,12 +140,12 @@ export async function handleConfirmBook(session: SessionRow): Promise<void> {
     await sendText(phoneE164, ERR_SERVER);
   }
 
-  await resetToIdle(session);
+  await endInteraction(session, session.phoneE164);
 }
 
 export async function handleCancelBook(session: SessionRow): Promise<void> {
   await sendText(session.phoneE164, "Ok, reserva cancelada.");
-  await resetToIdle(session);
+  await endInteraction(session, session.phoneE164);
 }
 
 function isoDate(offsetDays: number): string {

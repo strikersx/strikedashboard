@@ -1,5 +1,6 @@
 import { sendButton, sendText } from "@/lib/wa/meta";
 import { renderMenu, renderOutrosMenu } from "@/lib/wa/render";
+import { resetToIdle, type SessionRow } from "@/lib/wa/session";
 
 const CONTACTO_MSG = "Entre em contacto com o número de atendimento.";
 
@@ -9,6 +10,20 @@ const CONTACTO_MSG = "Entre em contacto com o número de atendimento.";
 // handleCancelar, btn_outros → handleOutros.
 export async function sendMenu(phoneE164: string): Promise<void> {
   await sendButton(phoneE164, renderMenu());
+}
+
+// Reset session to IDLE and show the main menu. This is the kiosk-style
+// terminator for every completed interaction — bookings, cancellations,
+// song requests (accepted or rejected), etc.
+//
+// If the reset fails (race: another inbound flow already bumped the session
+// version since this handler started), we DO NOT send the menu — that other
+// flow owns the next message and showing the menu would be confusing.
+export async function endInteraction(session: SessionRow, phoneE164: string): Promise<void> {
+  const reset = await resetToIdle(session);
+  if (reset.ok) {
+    await sendMenu(phoneE164);
+  }
 }
 
 // "Outros" button → interactive sub-menu with Playlist and Contacto options.

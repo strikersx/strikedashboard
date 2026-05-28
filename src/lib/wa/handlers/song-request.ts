@@ -10,6 +10,7 @@ import {
   createClassPlaylist,
 } from "@/lib/spotify/playlist-manager";
 import { listClasses, parseClassStart } from "@/lib/yogo/signups";
+import { endInteraction } from "@/lib/wa/handlers/menu";
 
 const OFFER_TEXT =
   "Queres pedir uma música para esta aula? Manda o link do Spotify ou diz 'não' para ignorar.";
@@ -77,7 +78,7 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
 
   // 'não' / 'nao' / 'no' / 'n' → cancel
   if (text === "não" || text === "nao" || text === "no" || text === "n") {
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
 
@@ -92,7 +93,7 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
       phoneE164,
       "Não consegui ligar este pedido a uma aula tua. Diz 'reserva' para começar de novo 🥷",
     );
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
   const yogoClassId = session.pendingSongClassId;
@@ -103,7 +104,7 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
       phoneE164,
       "A playlist desta aula ainda não está pronta. Tenta de novo daqui a 1min 🥷",
     );
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
   if (playlist.locked) {
@@ -121,7 +122,7 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
       },
     });
     await sendText(phoneE164, WINDOW_CLOSED);
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
 
@@ -145,7 +146,7 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
       phoneE164,
       `Esta música é classificada como ${result.matchedKeyword} pelo Spotify. A casa só toca rock, hip-hop, rap e pop. Tenta outra 🥷`
     );
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
 
@@ -167,7 +168,7 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
       phoneE164,
       `O artista ${result.blockedArtistName} está bloqueado. Tenta outra música 🥷`
     );
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
 
@@ -189,7 +190,7 @@ export async function handleSongInput(session: SessionRow, body: string): Promis
       phoneE164,
       `*${result.trackName}* — ${result.artistName} tem conteúdo explícito 🚫\n\nA Strike não toca explícitas na aula. Procura a versão *Clean* / *Radio Edit* no Spotify e tenta de novo 🥷`
     );
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
 
@@ -228,7 +229,7 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
 
   if (text === "não" || text === "nao" || text === "n" || text === "no") {
     await sendText(phoneE164, "Ok, pedido cancelado 🥷");
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
   if (!(text === "sim" || text === "s" || text === "yes" || text === "y")) {
@@ -238,7 +239,7 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
 
   if (!session.pendingSongClassId || !session.pendingTrackId) {
     await sendText(phoneE164, "Perdi o contexto do pedido. Diz 'reserva' para começar de novo 🥷");
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
   const yogoClassId = session.pendingSongClassId;
@@ -247,7 +248,7 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
   const result = await evaluateTrack(trackId);
   if (result.outcome !== "accept") {
     await sendText(phoneE164, "A música deixou de ser aceitável (verificação falhou). Tenta outra 🥷");
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
 
@@ -294,7 +295,7 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
       phoneE164,
       "Falhou a adicionar à playlist (erro no Spotify). Tenta outra vez daqui a 1min 🥷",
     );
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
 
@@ -320,7 +321,7 @@ export async function handleSongConfirm(session: SessionRow, body: string): Prom
     phoneE164,
     `Adicionado! 🥷\n\n*${result.trackName}* — ${result.artistName}\nVai tocar na ${positionMsg} posição da playlist da tua aula.${playlistLink}`
   );
-  await resetToIdle(session);
+  await endInteraction(session, phoneE164);
 }
 
 export async function removeSongOnCancel(phoneE164: string, yogoClassId: number): Promise<void> {
@@ -347,12 +348,12 @@ export async function handleSwapConfirm(session: SessionRow, body: string): Prom
 
   if (!(text === "sim" || text === "s" || text === "yes" || text === "y")) {
     await sendText(phoneE164, "Pedido cancelado. Música anterior mantida.");
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
 
   if (!session.pendingSongClassId || !session.pendingTrackId) {
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
   const yogoClassId = session.pendingSongClassId;
@@ -362,13 +363,13 @@ export async function handleSwapConfirm(session: SessionRow, body: string): Prom
     where: { contactId: phoneE164, yogoClassId, status: "active" },
   });
   if (!old) {
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
 
   const result = await evaluateTrack(trackId);
   if (result.outcome !== "accept") {
-    await resetToIdle(session);
+    await endInteraction(session, phoneE164);
     return;
   }
 
@@ -389,5 +390,5 @@ export async function handleSwapConfirm(session: SessionRow, body: string): Prom
     phoneE164,
     `Troca feita! 🥷\n\n*${result.trackName}* — ${result.artistName}\nSubstituiu a anterior na mesma posição.${playlistLink}`
   );
-  await resetToIdle(session);
+  await endInteraction(session, phoneE164);
 }

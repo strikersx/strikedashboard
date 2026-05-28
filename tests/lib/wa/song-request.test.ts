@@ -7,6 +7,7 @@ const {
   transitionMock,
   ttlFromNowMock,
   resetToIdleMock,
+  endInteractionMock,
   playlistFindUniqueMock,
   songRequestFindFirstMock,
   songRequestCreateMock,
@@ -21,6 +22,7 @@ const {
   transitionMock: vi.fn(),
   ttlFromNowMock: vi.fn(),
   resetToIdleMock: vi.fn(),
+  endInteractionMock: vi.fn(),
   playlistFindUniqueMock: vi.fn(),
   songRequestFindFirstMock: vi.fn(),
   songRequestCreateMock: vi.fn(),
@@ -77,6 +79,13 @@ vi.mock("@/lib/wa/session", async (importOriginal) => {
     resetToIdle: resetToIdleMock,
   };
 });
+
+vi.mock("@/lib/wa/handlers/menu", () => ({
+  endInteraction: endInteractionMock,
+  sendMenu: vi.fn(),
+  handleOutros: vi.fn(),
+  handleContacto: vi.fn(),
+}));
 
 import { offerSongRequest, handleSongInput, handleSongConfirm, handleSwapConfirm, removeSongOnCancel } from "@/lib/wa/handlers/song-request";
 
@@ -244,7 +253,7 @@ describe("handleSongInput", () => {
   it("'não' → resets to idle, no message sent", async () => {
     await handleSongInput(AWAIT_INPUT_SESSION, "não");
 
-    expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_INPUT_SESSION);
+    expect(endInteractionMock).toHaveBeenCalledWith(AWAIT_INPUT_SESSION, PHONE);
     expect(sendTextMock).not.toHaveBeenCalled();
     expect(evaluateTrackMock).not.toHaveBeenCalled();
   });
@@ -257,7 +266,7 @@ describe("handleSongInput", () => {
       PHONE,
       "Manda o link do Spotify da música (ex: https://open.spotify.com/track/...) ou diz 'não' para ignorar.",
     );
-    expect(resetToIdleMock).not.toHaveBeenCalled();
+    expect(endInteractionMock).not.toHaveBeenCalled();
     expect(evaluateTrackMock).not.toHaveBeenCalled();
   });
 
@@ -278,7 +287,7 @@ describe("handleSongInput", () => {
       PHONE,
       "Esta aula já começou há mais de 10 min — pedidos fechados.",
     );
-    expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_INPUT_SESSION);
+    expect(endInteractionMock).toHaveBeenCalledWith(AWAIT_INPUT_SESSION, PHONE);
     expect(evaluateTrackMock).not.toHaveBeenCalled();
   });
 
@@ -306,7 +315,7 @@ describe("handleSongInput", () => {
       PHONE,
       "Esta música é classificada como sertanejo pelo Spotify. A casa só toca rock, hip-hop, rap e pop. Tenta outra 🥷",
     );
-    expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_INPUT_SESSION);
+    expect(endInteractionMock).toHaveBeenCalledWith(AWAIT_INPUT_SESSION, PHONE);
   });
 
   it("accepted track → transitions to AWAIT_SONG_CONFIRM and sends confirmation prompt", async () => {
@@ -341,7 +350,7 @@ describe("handleSongInput", () => {
       PHONE,
       "Vais ouvir *Lose Yourself* — Eminem 🎵\nConfirmar? (sim/não)",
     );
-    expect(resetToIdleMock).not.toHaveBeenCalled();
+    expect(endInteractionMock).not.toHaveBeenCalled();
     expect(songRequestCreateMock).not.toHaveBeenCalled();
   });
 });
@@ -423,13 +432,13 @@ describe("handleSongConfirm", () => {
     expect(sendTextMock.mock.calls[0][1]).toContain("Adicionado! 🥷");
     expect(sendTextMock.mock.calls[0][1]).toContain("Lose Yourself");
     expect(sendTextMock.mock.calls[0][1]).toContain("Eminem");
-    expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_CONFIRM_SESSION);
+    expect(endInteractionMock).toHaveBeenCalledWith(AWAIT_CONFIRM_SESSION, PHONE);
   });
 
   it("'não' → sends cancel confirmation, no insert, session reset", async () => {
     await handleSongConfirm(AWAIT_CONFIRM_SESSION, "não");
 
-    expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_CONFIRM_SESSION);
+    expect(endInteractionMock).toHaveBeenCalledWith(AWAIT_CONFIRM_SESSION, PHONE);
     expect(sendTextMock).toHaveBeenCalledWith(PHONE, "Ok, pedido cancelado 🥷");
     expect(insertSongAtNextPositionMock).not.toHaveBeenCalled();
     expect(songRequestCreateMock).not.toHaveBeenCalled();
@@ -459,14 +468,14 @@ describe("handleSongConfirm", () => {
     );
     expect(insertSongAtNextPositionMock).not.toHaveBeenCalled();
     expect(songRequestCreateMock).not.toHaveBeenCalled();
-    expect(resetToIdleMock).not.toHaveBeenCalled();
+    expect(endInteractionMock).not.toHaveBeenCalled();
   });
 
   it("invalid reply → sends 'Responde sim ou não', stays in state (no reset)", async () => {
     await handleSongConfirm(AWAIT_CONFIRM_SESSION, "talvez");
 
     expect(sendTextMock).toHaveBeenCalledWith(PHONE, "Responde 'sim' ou 'não'.");
-    expect(resetToIdleMock).not.toHaveBeenCalled();
+    expect(endInteractionMock).not.toHaveBeenCalled();
     expect(evaluateTrackMock).not.toHaveBeenCalled();
   });
 });
@@ -499,14 +508,14 @@ describe("handleSwapConfirm", () => {
     expect(sendTextMock.mock.calls[0][1]).toContain("Troca feita! 🥷");
     expect(sendTextMock.mock.calls[0][1]).toContain(ACCEPT_RESULT.trackName);
     expect(sendTextMock.mock.calls[0][1]).toContain(ACCEPT_RESULT.artistName);
-    expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_SWAP_SESSION);
+    expect(endInteractionMock).toHaveBeenCalledWith(AWAIT_SWAP_SESSION, PHONE);
   });
 
   it("'não' → 'Pedido cancelado' sent, session reset, no swap", async () => {
     await handleSwapConfirm(AWAIT_SWAP_SESSION, "não");
 
     expect(sendTextMock).toHaveBeenCalledWith(PHONE, "Pedido cancelado. Música anterior mantida.");
-    expect(resetToIdleMock).toHaveBeenCalledWith(AWAIT_SWAP_SESSION);
+    expect(endInteractionMock).toHaveBeenCalledWith(AWAIT_SWAP_SESSION, PHONE);
     expect(swapSongMock).not.toHaveBeenCalled();
     expect(evaluateTrackMock).not.toHaveBeenCalled();
   });
