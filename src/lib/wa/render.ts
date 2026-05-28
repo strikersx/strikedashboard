@@ -188,6 +188,72 @@ export function renderOutrosMenu(): WaButtonPayload {
     buttons: [
       { id: "btn_playlist", title: "Playlist da aula" },
       { id: "btn_contacto", title: "Contacto" },
+      { id: "btn_voltar_menu", title: "Voltar" },
+    ],
+  };
+}
+
+// Song-request offer (right after a booking is confirmed). Replaces the
+// old free-text "Manda o link..." prompt with explicit buttons so the
+// student always has a Voltar escape and never has to type "não".
+export function renderSongOffer(): WaButtonPayload {
+  return {
+    type: "button",
+    bodyText: "Queres pedir uma música para esta aula?",
+    buttons: [
+      { id: "song_yes", title: "Sim, pedir" },
+      { id: "song_no", title: "Não" },
+      { id: "btn_voltar_menu", title: "Voltar" },
+    ],
+  };
+}
+
+// After the student sends a Spotify link, we evaluate the track and show
+// a preview with confirm/cancel buttons + Voltar.
+export function renderSongConfirm(trackName: string, artistName: string): WaButtonPayload {
+  return {
+    type: "button",
+    bodyText: truncate(`Vais ouvir *${trackName}* — ${artistName} 🎵\nConfirmar?`, 1024),
+    buttons: [
+      { id: "song_confirm", title: "Confirmar" },
+      { id: "song_cancel", title: "Cancelar" },
+      { id: "btn_voltar_menu", title: "Menu" },
+    ],
+  };
+}
+
+// When the student already has an active song for this class and sends a
+// new link, ask if they want to cancel the previous and replace it.
+export function renderReplaceConfirm(
+  oldTrack: string,
+  oldArtist: string,
+  newTrack: string,
+  newArtist: string,
+): WaButtonPayload {
+  return {
+    type: "button",
+    bodyText: truncate(
+      `Já pediste "${oldTrack} — ${oldArtist}".\nCancelar e pedir esta nova (${newTrack} — ${newArtist})?`,
+      1024,
+    ),
+    buttons: [
+      { id: "replace_yes", title: "Sim, trocar" },
+      { id: "replace_no", title: "Manter anterior" },
+      { id: "btn_voltar_menu", title: "Menu" },
+    ],
+  };
+}
+
+// Sent when the bot is mid-flow (e.g. AWAIT_SONG_INPUT) and the user
+// sends a button reply from a stale menu, or anything else the flow
+// can't act on. Always offers a Voltar escape.
+export function renderFlowHint(bodyText: string, retryButtonId: string, retryTitle: string): WaButtonPayload {
+  return {
+    type: "button",
+    bodyText: truncate(bodyText, 1024),
+    buttons: [
+      { id: retryButtonId, title: retryTitle.slice(0, 20) },
+      { id: "btn_voltar_menu", title: "Voltar ao menu" },
     ],
   };
 }

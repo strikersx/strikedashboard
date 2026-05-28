@@ -2,7 +2,8 @@ import { db } from "@/lib/db";
 import { isReservarEnabled } from "@/lib/wa/config";
 import { parseIntent, type MetaInboundMessage } from "@/lib/wa/parser";
 import { isExpired, loadSession, resetToIdle, type SessionRow } from "@/lib/wa/session";
-import { sendText } from "@/lib/wa/meta";
+import { sendButton, sendText } from "@/lib/wa/meta";
+import { renderFlowHint } from "@/lib/wa/render";
 import {
   handleClassPick,
   handleConfirmBook,
@@ -16,21 +17,25 @@ import {
   handleCancelar,
   handleConfirmCancel,
 } from "@/lib/wa/handlers/cancelar";
-import { handleContacto, handleOutros, sendMenu } from "@/lib/wa/handlers/menu";
+import { endInteraction, handleContacto, handleOutros, sendMenu } from "@/lib/wa/handlers/menu";
 import { handlePlaylistList } from "@/lib/wa/handlers/playlist-list";
-import { handleSongInput, handleSongConfirm, handleSwapConfirm } from "@/lib/wa/handlers/song-request";
+import {
+  handleSongInput,
+  handleSongOfferButton,
+  handleSongConfirm,
+  handleSwapConfirm,
+} from "@/lib/wa/handlers/song-request";
 
 // Dispatch routes an inbound WhatsApp message based on (1) menu button IDs,
 // (2) the session's current state, and (3) the intent kind from the parser.
 //
 // Top-of-funnel UX: any text in IDLE shows the menu (Reservar / Minha agenda
 // / Outros). The 3 button replies fire the corresponding flows from anywhere
-// (state is reset first). Mid-flow text resets to IDLE and re-shows the menu
-// — there is no contextual text fallback anymore.
+// (state is reset first). `btn_voltar_menu` is a universal escape that ends
+// any in-flight interaction. Mid-flow text resets to IDLE and re-shows the
+// menu — no contextual text fallback.
 export async function dispatch(phoneE164: string, message: MetaInboundMessage): Promise<void> {
   if (!isReservarEnabled()) {
-    // Slice-2 echo retained for emergency rollback. Should not be reached
-    // once WA_FLOW_RESERVAR=true in prod.
     const body = message.text?.body ?? "";
     const result = await sendText(phoneE164, `echo: ${body}`);
     if (!result.ok) {
@@ -54,8 +59,12 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
     if (reset.ok) session = reset.session;
   }
 
-  // Menu buttons are the universal "start over" signal. Reset state first
-  // so the handler runs in a clean IDLE-equivalent.
+  // Universal escape: any state, any time.
+  if (intent.kind === "button" && intent.id === "btn_voltar_menu") {
+    return endInteraction(session, phoneE164);
+  }
+
+  // Top-of-funnel menu buttons reset state then fire the flow.
   if (intent.kind === "button") {
     if (intent.id === "btn_reservar") {
       const s = await ensureIdle(session, phoneE164);
@@ -78,9 +87,7 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
     if (intent.id === "btn_contacto") {
       return handleContacto(phoneE164);
     }
-    // Otherwise fall through — flow-specific buttons (confirm_book,
-    // cancel_book, confirm_cancel, abort_cancel) are handled inside the
-    // state switch below, not here. (Fix M-1: clarify why we fall through.)
+    // Otherwise fall through — flow-specific buttons are handled in switch.
   }
 
   switch (session.state) {
@@ -88,7 +95,6 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
       if (intent.kind === "list_pick") return handleClassPick(session, intent.id);
       if (intent.kind === "button" && intent.id === "confirm_book") return handleConfirmBook(session);
       if (intent.kind === "button" && intent.id === "cancel_book") return handleCancelBook(session);
-      // Any text or other input → reset and re-show menu.
       await resetToIdle(session);
       return sendMenu(phoneE164);
 
@@ -100,8 +106,6 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
 
     case "AWAIT_CANCEL_PICK":
       if (intent.kind === "list_pick") return handleCancelPick(session, intent.id);
-      // Free-text DD/MM HH:MM is the documented fallback when there are >10
-      // signups, so we keep it routed here.
       if (intent.kind === "text") return handleCancelPickByText(session, intent.body);
       await resetToIdle(session);
       return sendMenu(phoneE164);
@@ -113,26 +117,58 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
       return sendMenu(phoneE164);
 
     case "AWAIT_SONG_INPUT":
+      if (intent.kind === "button") {
+        if (intent.id === "song_yes" || intent.id === "song_no") {
+          return handleSongOfferButton(session, intent.id);
+        }
+        // Unknown button mid-flow — re-show offer
+        return handleSongOfferButton(session, "song_yes");
+      }
       if (intent.kind === "text") return handleSongInput(session, intent.body);
-      // Non-text (buttons, list picks) while awaiting a song → hint
-      await sendText(phoneE164, "Manda o link do Spotify da música (ex: https://open.spotify.com/track/...) ou diz 'não' para ignorar.");
+      // list_pick or anything else → hint with buttons
+      await sendButton(
+        phoneE164,
+        renderFlowHint(
+          "Manda o link da música (ex: https://open.spotify.com/track/...) ou cancela.",
+          "song_no",
+          "Cancelar",
+        ),
+      );
       return;
 
     case "AWAIT_SONG_CONFIRM":
-      if (intent.kind === "text") return handleSongConfirm(session, intent.body);
-      await sendText(phoneE164, "Responde 'sim' ou 'não'.");
+      if (intent.kind === "button" && (intent.id === "song_confirm" || intent.id === "song_cancel")) {
+        return handleSongConfirm(session, intent.id);
+      }
+      // Text fallback: sim/não → buttons
+      if (intent.kind === "text") {
+        const t = intent.body.trim().toLowerCase();
+        if (t === "sim" || t === "s" || t === "yes" || t === "y") return handleSongConfirm(session, "song_confirm");
+        if (t === "não" || t === "nao" || t === "n" || t === "no") return handleSongConfirm(session, "song_cancel");
+      }
+      await sendButton(
+        phoneE164,
+        renderFlowHint("Confirma ou cancela o pedido de música.", "song_confirm", "Confirmar"),
+      );
       return;
 
     case "AWAIT_SWAP_CONFIRM":
-      if (intent.kind === "text") return handleSwapConfirm(session, intent.body);
-      await sendText(phoneE164, "Responde 'sim' ou 'não'.");
+      if (intent.kind === "button" && (intent.id === "replace_yes" || intent.id === "replace_no")) {
+        return handleSwapConfirm(session, intent.id);
+      }
+      if (intent.kind === "text") {
+        const t = intent.body.trim().toLowerCase();
+        if (t === "sim" || t === "s" || t === "yes" || t === "y") return handleSwapConfirm(session, "replace_yes");
+        if (t === "não" || t === "nao" || t === "n" || t === "no") return handleSwapConfirm(session, "replace_no");
+      }
+      await sendButton(
+        phoneE164,
+        renderFlowHint("Queres trocar a música anterior pela nova?", "replace_yes", "Sim, trocar"),
+      );
       return;
 
     case "IDLE":
     default:
-      // Anything in IDLE → menu. Keyword intents ("reservar", "cancelar")
-      // still exist in parseIntent but are not matched anywhere above —
-      // they fall through to here and get sendMenu, which is the new UX.
       return sendMenu(phoneE164);
   }
 }

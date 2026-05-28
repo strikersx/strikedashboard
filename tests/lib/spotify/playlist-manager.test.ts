@@ -259,7 +259,7 @@ describe("insertSongAtNextPosition", () => {
     });
   });
 
-  it("inserts at position = requestCount and increments counter atomically", async () => {
+  it("always inserts at position 0 (top), still increments requestCount counter", async () => {
     // Tx update returns playlist with new requestCount (3 = 2 + increment)
     playlistUpdateMock.mockResolvedValueOnce({
       id: "cuid",
@@ -290,9 +290,9 @@ describe("insertSongAtNextPosition", () => {
       trackUri: "spotify:track:xyz",
     });
 
-    expect(result.position).toBe(2);
+    expect(result.position).toBe(0);
     expect(receivedBody).not.toBeNull();
-    expect(receivedBody!.position).toBe(2);
+    expect(receivedBody!.position).toBe(0);
     expect(receivedBody!.uris).toEqual(["spotify:track:xyz"]);
     expect(playlistUpdateMock).toHaveBeenCalledWith({
       where: { yogoClassId: 100 },

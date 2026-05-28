@@ -108,17 +108,18 @@ export interface InsertSongResult {
 }
 
 export async function insertSongAtNextPosition(args: InsertSongArgs): Promise<InsertSongResult> {
+  // Always insert at position 0 — newest song goes to the top, pushes others
+  // down. requestCount is incremented for stats, not used for positioning.
   const playlist = await db.$transaction(async (tx) => {
     return tx.waClassPlaylist.update({
       where: { yogoClassId: args.yogoClassId },
       data: { requestCount: { increment: 1 } },
     });
   });
-  const position = playlist.requestCount - 1;
 
   const res = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/items`, {
     method: "POST",
-    body: JSON.stringify({ uris: [args.trackUri], position }),
+    body: JSON.stringify({ uris: [args.trackUri], position: 0 }),
   });
   if (!res.ok) {
     await db.waClassPlaylist.update({
@@ -128,7 +129,7 @@ export async function insertSongAtNextPosition(args: InsertSongArgs): Promise<In
     throw new Error(`Spotify add track failed: ${res.status}`);
   }
 
-  return { position };
+  return { position: 0 };
 }
 
 export async function removeSongAndRecompress(songRequestId: string): Promise<void> {
@@ -191,9 +192,10 @@ export async function swapSong(args: SwapSongArgs): Promise<{ position: number; 
   });
   if (!delRes.ok) throw new Error(`Spotify delete failed: ${delRes.status}`);
 
+  // Always re-insert at top — matches insertSongAtNextPosition semantics.
   const addRes = await spotifyFetch(`/v1/playlists/${playlist.spotifyPlaylistId}/items`, {
     method: "POST",
-    body: JSON.stringify({ uris: [args.newTrackUri], position: old.position }),
+    body: JSON.stringify({ uris: [args.newTrackUri], position: 0 }),
   });
   if (!addRes.ok) throw new Error(`Spotify insert failed: ${addRes.status}`);
 
@@ -210,11 +212,11 @@ export async function swapSong(args: SwapSongArgs): Promise<{ position: number; 
         spotifyTrackName: args.newTrackName,
         spotifyArtistName: args.newArtistName,
         spotifyTrackUri: args.newTrackUri,
-        position: old.position,
+        position: 0,
         status: "active",
       },
     }),
   ]);
 
-  return { position: old.position, newRequestId: fresh.id };
+  return { position: 0, newRequestId: fresh.id };
 }
