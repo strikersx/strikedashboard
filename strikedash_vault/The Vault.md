@@ -32,7 +32,7 @@ Central index for Striker's House Dashboard documentation.
 
 ## Data & Filtering
 
-_(To be added as we document data flows)_
+- [[Spotify-Filter-Field-Scoping-2026-05-28]] — Filtro de músicas WA: explícito permitido + keywords com match por campo (género/artista/título) — 2026-05-28
 
 ## Navigation & UI
 

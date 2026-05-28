@@ -118,6 +118,10 @@ model WaClassPlaylist {
 model WaBlockedGenre {
   id        String   @id @default(cuid())
   keyword   String   @unique
+  // Which Spotify field this keyword is matched against: "genre" | "artist" | "track".
+  // Field-scoped to avoid cross-field false positives (e.g. an artist keyword
+  // leaking into track-name matches like "adele" inside "Madeleine").
+  field     String   @default("genre")
   addedBy   String
   addedAt   DateTime @default(now())
   active    Boolean  @default(true)

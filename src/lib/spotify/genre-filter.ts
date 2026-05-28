@@ -24,18 +24,12 @@ export type EvaluateResult =
       blockedArtistName: string;
       trackName: string;
       artistName: string;
-    }
-  | {
-      outcome: "reject_explicit";
-      trackName: string;
-      artistName: string;
     };
 
 interface SpotifyTrack {
   id: string;
   name: string;
   uri: string;
-  explicit: boolean;
   artists: Array<{ id: string; name?: string }>;
 }
 
@@ -56,15 +50,6 @@ export async function evaluateTrack(trackId: string): Promise<EvaluateResult> {
   const track = (await trackRes.json()) as SpotifyTrack;
   const artistIds = track.artists.map((a) => a.id);
   const primaryArtistName = track.artists[0]?.name ?? "Unknown";
-
-  // Marcelo's hard rule: no explicit content at the gym — overrides allowlist
-  if (track.explicit) {
-    return {
-      outcome: "reject_explicit",
-      trackName: track.name,
-      artistName: primaryArtistName,
-    };
-  }
 
   // Block first (precise artist ID match)
   const artistBlocks = await db.waBlockedArtist.findMany({
@@ -109,9 +94,15 @@ export async function evaluateTrack(trackId: string): Promise<EvaluateResult> {
 
   const blocked = await db.waBlockedGenre.findMany({ where: { active: true } });
 
+  // Field-scoped match: each keyword is tested ONLY against the Spotify field it
+  // was registered for. This prevents a genre keyword (e.g. "sleep") from killing
+  // a track named "Sleepless", or an artist keyword ("adele") from matching the
+  // track title "Madeleine". Legacy rows default to "genre".
   for (const b of blocked) {
     const kw = norm(b.keyword);
-    if (allGenres.some((g) => g.includes(kw))) {
+    const field = b.field ?? "genre";
+
+    if (field === "genre" && allGenres.some((g) => g.includes(kw))) {
       return {
         outcome: "reject_genre",
         matchedKeyword: b.keyword,
@@ -120,7 +111,7 @@ export async function evaluateTrack(trackId: string): Promise<EvaluateResult> {
         artistName: resolvedPrimaryName,
       };
     }
-    if (allArtistNames.some((n) => n.includes(kw))) {
+    if (field === "artist" && allArtistNames.some((n) => n.includes(kw))) {
       return {
         outcome: "reject_genre",
         matchedKeyword: b.keyword,
@@ -129,7 +120,7 @@ export async function evaluateTrack(trackId: string): Promise<EvaluateResult> {
         artistName: resolvedPrimaryName,
       };
     }
-    if (trackNameNorm.includes(kw)) {
+    if (field === "track" && trackNameNorm.includes(kw)) {
       return {
         outcome: "reject_genre",
         matchedKeyword: b.keyword,

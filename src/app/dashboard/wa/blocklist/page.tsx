@@ -2,13 +2,22 @@
 
 import { useState, useEffect } from "react";
 
+type BlockField = "genre" | "artist" | "track";
+
 interface BlockedGenre {
   id: string;
   keyword: string;
+  field: BlockField;
   addedBy: string;
   addedAt: string;
   active: boolean;
 }
+
+const FIELD_LABEL: Record<BlockField, string> = {
+  genre: "género",
+  artist: "artista",
+  track: "música",
+};
 
 interface BlockedArtist {
   spotifyArtistId: string;
@@ -22,6 +31,7 @@ export default function BlocklistPage() {
   const [genres, setGenres] = useState<BlockedGenre[]>([]);
   const [artists, setArtists] = useState<BlockedArtist[]>([]);
   const [newKeyword, setNewKeyword] = useState("");
+  const [newField, setNewField] = useState<BlockField>("genre");
   const [newArtistId, setNewArtistId] = useState("");
   const [newArtistName, setNewArtistName] = useState("");
   const [newReason, setNewReason] = useState("");
@@ -44,7 +54,7 @@ export default function BlocklistPage() {
     await fetch("/api/whatsapp/admin/spotify-blocklist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "genre", keyword: newKeyword.trim() }),
+      body: JSON.stringify({ type: "genre", keyword: newKeyword.trim(), field: newField }),
     });
     setNewKeyword("");
     await load();
@@ -85,8 +95,21 @@ export default function BlocklistPage() {
       <h1 className="text-2xl font-semibold">Spotify Blocklist</h1>
 
       <section>
-        <h2 className="text-lg mb-3 text-zinc-300">Géneros bloqueados ({genres.length})</h2>
+        <h2 className="text-lg mb-3 text-zinc-300">Keywords bloqueadas ({genres.length})</h2>
+        <p className="text-xs text-zinc-500 mb-3">
+          O campo define onde a keyword é procurada: <span className="font-mono">género</span> (tags do Spotify),{" "}
+          <span className="font-mono">artista</span> (nome) ou <span className="font-mono">música</span> (título).
+        </p>
         <div className="flex gap-2 mb-4">
+          <select
+            value={newField}
+            onChange={(e) => setNewField(e.target.value as BlockField)}
+            className="bg-zinc-900 border border-zinc-800 px-3 py-2 rounded text-sm"
+          >
+            <option value="genre">género</option>
+            <option value="artist">artista</option>
+            <option value="track">música</option>
+          </select>
           <input
             value={newKeyword}
             onChange={(e) => setNewKeyword(e.target.value)}
@@ -109,6 +132,7 @@ export default function BlocklistPage() {
             >
               <span>
                 <span className="font-mono">{g.keyword}</span>
+                <span className="ml-2 text-zinc-500 text-xs">{FIELD_LABEL[g.field] ?? g.field}</span>
                 {!g.active && <span className="ml-2 text-zinc-500">(inactive)</span>}
               </span>
               <button

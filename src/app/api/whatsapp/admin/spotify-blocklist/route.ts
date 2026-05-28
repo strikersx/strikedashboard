@@ -22,17 +22,21 @@ export async function POST(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
   const body = (await req.json()) as
-    | { type: "genre"; keyword: string }
+    | { type: "genre"; keyword: string; field?: "genre" | "artist" | "track" }
     | { type: "artist"; spotifyArtistId: string; artistName: string; reason?: string };
 
   if (body.type === "genre") {
     if (!body.keyword || body.keyword.length < 2) {
       return NextResponse.json({ error: "keyword too short" }, { status: 400 });
     }
+    const field = body.field ?? "genre";
+    if (!["genre", "artist", "track"].includes(field)) {
+      return NextResponse.json({ error: "invalid field" }, { status: 400 });
+    }
     const created = await db.waBlockedGenre.upsert({
       where: { keyword: body.keyword.toLowerCase() },
-      create: { keyword: body.keyword.toLowerCase(), addedBy: "admin" },
-      update: { active: true },
+      create: { keyword: body.keyword.toLowerCase(), field, addedBy: "admin" },
+      update: { field, active: true },
     });
     return NextResponse.json({ ok: true, entry: created });
   }

@@ -61,8 +61,8 @@ export default function AllowlistPage() {
         <h1 className="text-2xl font-semibold">Spotify Allowlist</h1>
         <p className="text-zinc-400 text-sm mt-1">
           Artistas que escapam ao filtro de keywords (ex: <span className="font-mono">Poesia Acústica</span> que
-          seria apanhado por <span className="font-mono">acústico</span>). Filtro de explicit e blocklist
-          continuam a aplicar-se.
+          seria apanhado por <span className="font-mono">acústico</span>). O blocklist de artistas
+          continua a aplicar-se.
         </p>
       </div>
 

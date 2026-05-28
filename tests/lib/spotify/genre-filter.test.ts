@@ -207,22 +207,21 @@ describe("evaluateTrack", () => {
     expect(result.outcome).toBe("accept");
   });
 
-  it("rejects explicit content outright", async () => {
+  it("accepts explicit content (no longer blocked at the gym)", async () => {
     genreFindManyMock.mockResolvedValue([]);
     artistFindManyMock.mockResolvedValue([]);
 
     mockSpotify(
       { id: "t7", name: "Foo", uri: "spotify:track:t7", explicit: true, artists: [{ id: "a" }] },
-      { a: { name: "Some Artist", genres: ["rock"] } }
+      { a: { name: "Eminem", genres: ["detroit hip hop", "hip hop", "rap"] } }
     );
 
     const result = await evaluateTrack("t7");
-    expect(result.outcome).toBe("reject_explicit");
+    expect(result.outcome).toBe("accept");
   });
 
-  it("rejects when keyword matches ARTIST NAME (not just genre)", async () => {
-    // Artist has no banned genre, but the artist name contains a blocked keyword
-    genreFindManyMock.mockResolvedValue([{ keyword: "anitta", active: true }]);
+  it("rejects when ARTIST keyword matches the artist name", async () => {
+    genreFindManyMock.mockResolvedValue([{ keyword: "anitta", field: "artist", active: true }]);
     artistFindManyMock.mockResolvedValue([]);
 
     mockSpotify(
@@ -238,8 +237,8 @@ describe("evaluateTrack", () => {
     }
   });
 
-  it("rejects when keyword matches TRACK NAME (not just genre or artist)", async () => {
-    genreFindManyMock.mockResolvedValue([{ keyword: "putaria", active: true }]);
+  it("rejects when TRACK keyword matches the track name", async () => {
+    genreFindManyMock.mockResolvedValue([{ keyword: "putaria", field: "track", active: true }]);
     artistFindManyMock.mockResolvedValue([]);
 
     mockSpotify(
@@ -254,9 +253,38 @@ describe("evaluateTrack", () => {
     }
   });
 
+  it("does NOT let a GENRE keyword leak into the track name (field-scoped)", async () => {
+    // "sleep" is a genre keyword; a track titled "Sleepless" must NOT be blocked.
+    genreFindManyMock.mockResolvedValue([{ keyword: "sleep", field: "genre", active: true }]);
+    artistFindManyMock.mockResolvedValue([]);
+
+    mockSpotify(
+      { id: "tF", name: "Sleepless", uri: "spotify:track:tF", artists: [{ id: "a" }] },
+      { a: { name: "Some Artist", genres: ["rock"] } }
+    );
+
+    const result = await evaluateTrack("tF");
+    expect(result.outcome).toBe("accept");
+  });
+
+  it("does NOT let an ARTIST keyword leak into the track name (field-scoped)", async () => {
+    // "adele" is an artist keyword; the title "Madeleine" contains it as a substring
+    // but must NOT be blocked because the keyword is scoped to the artist field.
+    genreFindManyMock.mockResolvedValue([{ keyword: "adele", field: "artist", active: true }]);
+    artistFindManyMock.mockResolvedValue([]);
+
+    mockSpotify(
+      { id: "tG", name: "Madeleine", uri: "spotify:track:tG", artists: [{ id: "a" }] },
+      { a: { name: "Some Artist", genres: ["rock"] } }
+    );
+
+    const result = await evaluateTrack("tG");
+    expect(result.outcome).toBe("accept");
+  });
+
   it("matches keyword across diacritic variants (axé ↔ axe)", async () => {
     // Keyword stored without accent, artist genre has accent — should still match
-    genreFindManyMock.mockResolvedValue([{ keyword: "axe", active: true }]);
+    genreFindManyMock.mockResolvedValue([{ keyword: "axe", field: "genre", active: true }]);
     artistFindManyMock.mockResolvedValue([]);
 
     mockSpotify(
@@ -270,7 +298,7 @@ describe("evaluateTrack", () => {
 
   it("matches keyword with accent against text without accent", async () => {
     // Keyword has accent, track name doesn't — normalization on both sides
-    genreFindManyMock.mockResolvedValue([{ keyword: "modão", active: true }]);
+    genreFindManyMock.mockResolvedValue([{ keyword: "modão", field: "track", active: true }]);
     artistFindManyMock.mockResolvedValue([]);
 
     mockSpotify(
@@ -306,8 +334,8 @@ describe("evaluateTrack", () => {
     }
   });
 
-  it("allowlist does NOT override explicit-reject", async () => {
-    // Marcelo's hard rule: explicit blocks even allowlisted artists
+  it("accepts an explicit track from an allowlisted artist", async () => {
+    // Explicit is no longer blocked; allowlist still short-circuits the keyword filter
     genreFindManyMock.mockResolvedValue([]);
     artistFindManyMock.mockResolvedValue([]);
     allowedArtistFindManyMock.mockResolvedValue([
@@ -320,7 +348,10 @@ describe("evaluateTrack", () => {
     );
 
     const result = await evaluateTrack("tD");
-    expect(result.outcome).toBe("reject_explicit");
+    expect(result.outcome).toBe("accept");
+    if (result.outcome === "accept") {
+      expect(result.allowlistedArtistId).toBe("poesia-id");
+    }
   });
 
   it("allowlist does NOT override artist blocklist", async () => {
@@ -342,9 +373,9 @@ describe("evaluateTrack", () => {
     expect(result.outcome).toBe("reject_artist");
   });
 
-  it("accept track ranks below explicit-reject even when explicit AND blocked", async () => {
-    // Explicit is the FIRST check, so even if other keywords would match, explicit wins
-    genreFindManyMock.mockResolvedValue([{ keyword: "pagode", active: true }]);
+  it("still applies the genre filter to explicit tracks", async () => {
+    // Explicit no longer short-circuits — a blocked genre is still rejected
+    genreFindManyMock.mockResolvedValue([{ keyword: "pagode", field: "genre", active: true }]);
     artistFindManyMock.mockResolvedValue([]);
 
     mockSpotify(
@@ -353,6 +384,6 @@ describe("evaluateTrack", () => {
     );
 
     const result = await evaluateTrack("t10");
-    expect(result.outcome).toBe("reject_explicit");
+    expect(result.outcome).toBe("reject_genre");
   });
 });
