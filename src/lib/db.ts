@@ -15,3 +15,11 @@ function createPrisma(): PrismaClient {
 export const db = globalForPrisma.__prisma ?? createPrisma();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.__prisma = db;
+
+// Enable WAL journal mode for better read/write concurrency.
+// Critical for test suites hitting the same SQLite file in parallel.
+if (process.env.DATABASE_URL?.startsWith("file:")) {
+  db.$executeRawUnsafe(`PRAGMA journal_mode=WAL`).catch(() => {
+    // WAL mode is best-effort — don't crash startup if it fails
+  });
+}

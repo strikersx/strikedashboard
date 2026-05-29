@@ -3,6 +3,12 @@ import path from "node:path";
 
 export default defineConfig({
   test: {
+    env: {
+      DATABASE_URL: "file:" + path.resolve(__dirname, "prisma/dev.db"),
+    },
+    // SQLite + libSQL can't handle parallel writes from multiple threads.
+    // Run test files sequentially to avoid locking/timeout failures.
+    fileParallelism: false,
     include: ["tests/**/*.test.ts"],
     coverage: {
       provider: "v8",

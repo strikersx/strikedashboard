@@ -7,9 +7,9 @@ generator client {
 }
 
 model WaContact {
-  phoneE164      String      @id
+  phoneE164      String       @id
   yogoCustomerId Int?
-  firstSeenAt    DateTime    @default(now())
+  firstSeenAt    DateTime     @default(now())
   sessions       WaSession[]
   inbounds       WaInbound[]
   outbounds      WaOutbound[]
@@ -27,16 +27,16 @@ model WaInbound {
 }
 
 model WaSession {
-  phoneE164       String    @id
-  state           String    @default("IDLE")
+  phoneE164          String    @id
+  state              String    @default("IDLE")
   pendingClassId     Int?
   pendingSignupId    Int?
   pendingSongClassId Int?
   pendingTrackId     String?
   expiresAt          DateTime?
-  version         Int       @default(0)
-  updatedAt       DateTime  @updatedAt
-  contact         WaContact @relation(fields: [phoneE164], references: [phoneE164])
+  version            Int       @default(0)
+  updatedAt          DateTime  @updatedAt
+  contact            WaContact @relation(fields: [phoneE164], references: [phoneE164])
 }
 
 model WaOutbound {
@@ -80,27 +80,27 @@ model WaGroupMember {
 
 model SpotifyToken {
   id            String   @id @default("singleton")
-  ciphertext    String   // AES-256-GCM encrypted refresh token
-  iv            String   // base64 nonce
-  authTag       String   // base64 GCM tag
-  spotifyUserId String   // Spotify user that owns the playlists
-  scope         String   // granted scopes (space-separated)
+  ciphertext    String // AES-256-GCM encrypted refresh token
+  iv            String // base64 nonce
+  authTag       String // base64 GCM tag
+  spotifyUserId String // Spotify user that owns the playlists
+  scope         String // granted scopes (space-separated)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
 
 model WaSongRequest {
-  id                 String   @id @default(cuid())
-  contactId          String
-  yogoClassId        Int
-  spotifyTrackId     String
-  spotifyTrackName   String
-  spotifyArtistName  String
-  spotifyTrackUri    String
-  position           Int
-  status             String   // active | cancelled_by_unbook | swapped | rejected_genre | rejected_artist | rejected_window
-  rejectedReason     String?
-  createdAt          DateTime @default(now())
+  id                String   @id @default(cuid())
+  contactId         String
+  yogoClassId       Int
+  spotifyTrackId    String
+  spotifyTrackName  String
+  spotifyArtistName String
+  spotifyTrackUri   String
+  position          Int
+  status            String // active | cancelled_by_unbook | swapped | rejected_genre | rejected_artist | rejected_window
+  rejectedReason    String?
+  createdAt         DateTime @default(now())
 
   @@index([contactId, yogoClassId])
   @@index([yogoClassId, status])
@@ -116,15 +116,15 @@ model WaClassPlaylist {
 }
 
 model WaBlockedGenre {
-  id        String   @id @default(cuid())
-  keyword   String   @unique
+  id      String   @id @default(cuid())
+  keyword String   @unique
   // Which Spotify field this keyword is matched against: "genre" | "artist" | "track".
   // Field-scoped to avoid cross-field false positives (e.g. an artist keyword
   // leaking into track-name matches like "adele" inside "Madeleine").
-  field     String   @default("genre")
-  addedBy   String
-  addedAt   DateTime @default(now())
-  active    Boolean  @default(true)
+  field   String   @default("genre")
+  addedBy String
+  addedAt DateTime @default(now())
+  active  Boolean  @default(true)
 }
 
 model WaBlockedArtist {
@@ -141,4 +141,119 @@ model WaAllowedArtist {
   reason          String?
   addedBy         String
   addedAt         DateTime @default(now())
+}
+
+// ─── StrikeLab Gamification (Phase 0) ────────────────────────────────
+
+/// One row per real person. customerId is the Yogo customer_id (authoritative).
+model GamificationIdentity {
+  customerId         Int       @id
+  phoneE164          String    @unique
+  email              String?   @unique
+  whatsappWaId       String?   @unique
+  manychatSubscriber String?   @unique
+  instagramHandle    String?   @unique
+  igVerifiedAt       DateTime?
+  igChallengeCode    String?
+  igChallengeExpiry  DateTime?
+  optInAt            DateTime?
+  optOutAt           DateTime?
+  consentVersion     String?   @default("v1.0")
+  consentTraining    Boolean   @default(false)
+  consentUgc         Boolean   @default(false)
+  consentRealName    Boolean   @default(false)
+  consentBroadcasts  Boolean   @default(false)
+  parentalConsentRef String?
+  birthYear          Int?
+  medicalPauseUntil  DateTime?
+  vacationPauseUntil DateTime?
+  personalPauseUntil DateTime?
+  erasedAt           DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  events GamificationEventLog[]
+  state  GamificationState?
+}
+
+/// Immutable append-only log. Every state change writes one row.
+/// Duplicate idempotency_key → silent no-op (P2002 catch in code).
+model GamificationEventLog {
+  id             String   @id @default(cuid())
+  eventId        Int      @unique
+  customerId     Int
+  eventType      String
+  pointsDelta    Int      @default(0)
+  xpDelta        Int      @default(0)
+  payloadJson    String?
+  source         String   @default("system") // "system" | "bot" | "admin" | "cron"
+  operatorId     Int?
+  idempotencyKey String   @unique
+  pointsPeriod   String? // "YYYY-MM" — computed in app code (Lisbon tz), NOT a generated column
+  createdAt      DateTime @default(now())
+
+  identity GamificationIdentity @relation(fields: [customerId], references: [customerId])
+
+  @@index([customerId, createdAt])
+  @@index([eventType, pointsPeriod])
+  @@index([pointsPeriod])
+}
+
+/// Materialized view — deterministic replay of event log.
+/// Rebuilt by materializeState(), never written directly by triggers.
+model GamificationState {
+  customerId            Int       @id
+  monthlyPoints         Int       @default(0)
+  lifetimeXp            Int       @default(0)
+  currentTier           String    @default("bronze")
+  proposedTier          String?
+  currentStreakDays     Int       @default(0)
+  streakShieldAvailable Boolean   @default(false)
+  shieldResetForMonth   String?
+  lastClassAt           DateTime?
+  lastReplayedEventId   Int?
+  updatedAt             DateTime  @updatedAt
+
+  identity GamificationIdentity @relation(fields: [customerId], references: [customerId])
+}
+
+/// Sealed snapshot at end of each month. Used for prize calculation + history.
+model GamificationMonthlySnapshot {
+  customerId      Int
+  pointsPeriod    String // "YYYY-MM"
+  monthlyPoints   Int       @default(0)
+  xpAtPeriodEnd   Int       @default(0)
+  classesInPeriod Int       @default(0)
+  finalTier       String    @default("bronze")
+  sealedAt        DateTime?
+
+  @@id([customerId, pointsPeriod])
+}
+
+/// Audit trail for monthly reset operations.
+model GamificationResetAudit {
+  resetId         String    @id @default(cuid())
+  resetPeriod     String // "YYYY-MM"
+  status          String    @default("pending") // pending | completed | failed
+  batchesApplied  Int       @default(0)
+  customersZeroed Int       @default(0)
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+}
+
+/// Daily snapshot of Yogo membership data. Used to detect renewals, cancellations, dunning.
+/// Diff between consecutive days triggers gamification events.
+model YogoMembershipSnapshot {
+  userId             Int
+  snapshotDate       String // "YYYY-MM-DD"
+  membershipTypeId   Int?
+  membershipTypeName String?
+  paidUntil          DateTime?
+  nextPaymentDate    DateTime?
+  status             String?
+  statusText         String?
+  capturedAt         DateTime  @default(now())
+
+  @@id([userId, snapshotDate])
+  @@index([snapshotDate])
 }

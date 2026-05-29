@@ -25,6 +25,11 @@ import {
   handleSongConfirm,
   handleSwapConfirm,
 } from "@/lib/wa/handlers/song-request";
+import {
+  handleStrikelabOnboard,
+  handleStrikelabConsent,
+  handleStrikelabParental,
+} from "@/lib/wa/handlers/strikelab-onboard";
 
 // Dispatch routes an inbound WhatsApp message based on (1) menu button IDs,
 // (2) the session's current state, and (3) the intent kind from the parser.
@@ -65,6 +70,12 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
   }
 
   // Top-of-funnel menu buttons reset state then fire the flow.
+  // "strikelab" text trigger from IDLE
+  if (intent.kind === "text" && intent.body.trim().toLowerCase() === "strikelab" &&
+      (session.state === "IDLE" || session.state === "STRIKELAB_AWAIT_PARENTAL")) {
+    return handleStrikelabOnboard(session);
+  }
+
   if (intent.kind === "button") {
     if (intent.id === "btn_reservar") {
       const s = await ensureIdle(session, phoneE164);
@@ -166,6 +177,23 @@ export async function dispatch(phoneE164: string, message: MetaInboundMessage): 
         renderFlowHint("Queres trocar a música anterior pela nova?", "replace_yes", "Sim, trocar"),
       );
       return;
+
+    case "STRIKELAB_AWAIT_CONSENT":
+      if (intent.kind === "button" && (intent.id === "strikelab_accept" || intent.id === "strikelab_decline")) {
+        return handleStrikelabConsent(session, intent.id);
+      }
+      await resetToIdle(session);
+      return sendMenu(phoneE164);
+
+    case "STRIKELAB_AWAIT_PARENTAL":
+      if (intent.kind === "text" && intent.body.trim().toLowerCase() === "strikelab") {
+        return handleStrikelabOnboard(session);
+      }
+      if (intent.kind === "button" && intent.id === "strikelab_parental_done") {
+        return handleStrikelabParental(session, intent.id);
+      }
+      await resetToIdle(session);
+      return sendMenu(phoneE164);
 
     case "IDLE":
     default:
