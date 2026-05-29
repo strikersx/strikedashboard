@@ -3,6 +3,9 @@ import path from "node:path";
 
 export default defineConfig({
   test: {
+    env: {
+      DATABASE_URL: "file:" + path.resolve(__dirname, "prisma/dev.db"),
+    },
     include: ["tests/**/*.test.ts"],
     coverage: {
       provider: "v8",
