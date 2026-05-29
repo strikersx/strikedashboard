@@ -107,16 +107,19 @@ export async function handleStrikelabOnboard(session: SessionRow): Promise<void>
   const res = await transition(session, { state: "STRIKELAB_AWAIT_CONSENT" });
   if (!res.ok) return;
 
-  await sendButton(
-    phone,
-    "🏆 StrikeLab — Programa de Gamificação\n\n" +
+  await sendButton(phone, {
+    type: "button",
+    bodyText:
+      "🏆 StrikeLab — Programa de Gamificação\n\n" +
       "Vais ganhar pontos por cada treino, subir de nível e ganhar prémios!\n\n" +
       "Para participar, preciso da tua autorização para:\n" +
       "• Usar os teus dados de treino (presenças, pontuação)\n\n" +
       "Aceitas participar?",
-    { id: "strikelab_accept", title: "Sim, quero participar! 🎯" },
-    { id: "strikelab_decline", title: "Não, obrigado" },
-  );
+    buttons: [
+      { id: "strikelab_accept", title: "Sim, quero participar!" },
+      { id: "strikelab_decline", title: "Não, obrigado" },
+    ],
+  });
 }
 
 /** Handle consent response buttons. */

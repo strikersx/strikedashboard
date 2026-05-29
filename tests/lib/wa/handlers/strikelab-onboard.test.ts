@@ -175,9 +175,14 @@ describe("strikelab-onboard", () => {
 
       expect(mockedSendButton).toHaveBeenCalledWith(
         PHONE_ADULT,
-        expect.stringContaining("StrikeLab"),
-        expect.objectContaining({ id: "strikelab_accept" }),
-        expect.objectContaining({ id: "strikelab_decline" }),
+        expect.objectContaining({
+          type: "button",
+          bodyText: expect.stringContaining("StrikeLab"),
+          buttons: expect.arrayContaining([
+            expect.objectContaining({ id: "strikelab_accept" }),
+            expect.objectContaining({ id: "strikelab_decline" }),
+          ]),
+        }),
       );
 
       // Verify identity was created
