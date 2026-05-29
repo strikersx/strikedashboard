@@ -8,6 +8,14 @@ export interface YogoCustomer {
   last_name?: string;
   phone?: string;
   email?: string;
+  date_of_birth?: string | null;
+}
+
+/** Fetch a single user's details including date_of_birth. */
+export async function getYogoUserDetail(userId: number): Promise<YogoCustomer | null> {
+  const res = await yogoFetch<YogoCustomer>(`users/${userId}`);
+  if (!res.ok) return null;
+  return res.data;
 }
 
 // Yogo has no documented per-phone lookup endpoint. Per-message fetching of
