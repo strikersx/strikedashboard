@@ -98,12 +98,12 @@ describe("evaluateTrack", () => {
       if (url.includes("/v1/tracks/")) {
         return new Response(JSON.stringify(track), { status: 200 });
       }
-      if (url.includes("/v1/artists?ids=")) {
-        const ids = new URL(url).searchParams.get("ids")!.split(",");
-        return new Response(
-          JSON.stringify({ artists: ids.map((id) => ({ id, ...artists[id] })) }),
-          { status: 200 }
-        );
+      // Individual artist endpoint (batch /v1/artists?ids= deprecated → 403)
+      const artistMatch = url.match(/\/v1\/artists\/([a-zA-Z0-9_-]+)$/);
+      if (artistMatch) {
+        const aid = artistMatch[1];
+        const data = artists[aid] ?? { name: aid, genres: [] };
+        return new Response(JSON.stringify({ id: aid, ...data }), { status: 200 });
       }
       return new Response("nope", { status: 500 });
     }) as unknown as typeof fetch;

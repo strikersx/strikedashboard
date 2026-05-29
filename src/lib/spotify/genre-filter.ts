@@ -71,10 +71,17 @@ export async function evaluateTrack(trackId: string): Promise<EvaluateResult> {
     where: { spotifyArtistId: { in: artistIds } },
   });
 
-  const artistsRes = await spotifyFetch(`/v1/artists?ids=${artistIds.join(",")}`);
-  if (!artistsRes.ok) throw new Error(`Artist lookup failed: ${artistsRes.status}`);
-  const artistsBody = (await artistsRes.json()) as { artists: SpotifyArtist[] };
-  const resolvedPrimaryName = artistsBody.artists[0]?.name ?? primaryArtistName;
+  // Spotify deprecated the batch endpoint GET /v1/artists?ids= for new apps
+  // (returns 403 Forbidden, same pattern as /playlists/{id}/tracks → /items).
+  // Fetch each artist individually; genres may be empty in Development Mode.
+  const artistDetails: SpotifyArtist[] = [];
+  for (const aid of artistIds) {
+    const ar = await spotifyFetch(`/v1/artists/${aid}`);
+    if (ar.ok) {
+      artistDetails.push((await ar.json()) as SpotifyArtist);
+    }
+  }
+  const resolvedPrimaryName = artistDetails[0]?.name ?? primaryArtistName;
 
   if (artistAllows.length > 0) {
     return {
@@ -88,8 +95,8 @@ export async function evaluateTrack(trackId: string): Promise<EvaluateResult> {
     };
   }
 
-  const allGenres = artistsBody.artists.flatMap((a) => a.genres.map(norm));
-  const allArtistNames = artistsBody.artists.map((a) => norm(a.name ?? ""));
+  const allGenres = artistDetails.flatMap((a) => (a.genres ?? []).map(norm));
+  const allArtistNames = artistDetails.map((a) => norm(a.name ?? ""));
   const trackNameNorm = norm(track.name ?? "");
 
   const blocked = await db.waBlockedGenre.findMany({ where: { active: true } });
